@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>同步計數器</title>
+  <title>同步領藥計數器</title>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -16,129 +16,43 @@
       align-items: center;
       background: #C3B091; /* 卡其色背景 */
       color: white;
-      font-family: Arial, sans-serif;
+      font-family: "Microsoft JhengHei", Arial, sans-serif;
     }
 
     .container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 30px;
+      gap: 15px; /* 縮短標題與數字的間距 */
     }
 
-    /* 歸零按鈕樣式 */
+    /* 歸零按鈕標題樣式 (目前領藥號) */
     .reset {
-      background: #2979ff;
-      color: white;
-      width: 90px;
-      height: 90px;
-      border-radius: 50%;
-      font-size: 40px;
+      background: #DCEDC8; /* 淺綠色底 */
+      color: #33691E;      /* 深綠色字 */
+      width: 380px;        /* 與數字螢幕同寬或略寬 */
+      padding: 15px 0;
+      border-radius: 15px 15px 5px 5px; /* 上圓下平 */
+      font-size: 32px;
       font-weight: bold;
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .reset:hover {
+      background: #C5E1A5; /* 滑鼠經過稍微變深 */
     }
 
     /* 數字顯示螢幕 */
     .screen {
-      font-size: 130px; /* 數字再加大 */
+      font-size: 150px;    /* 領藥號數字加大 */
       font-weight: bold;
       min-width: 300px;
+      width: 380px;
       text-align: center;
       background: #3E2723; /* 深咖啡色底色 */
-      color: #FFFFFF;    /* 數字白色 */
-      padding: 40px;
-      border-radius: 30px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-      border: 4px solid #2D1B19;
-    }
-
-    /* 下方按鈕佈局 */
-    .bottom-controls {
-      display: flex;
-      justify-content: space-between;
-      width: 100%;
-      gap: 50px;
-    }
-
-    .btn {
-      background: #4E342E; /* 稍微淺一點點的咖啡色，區分按鈕 */
-      padding: 30px;
-      border-radius: 20px;
-      width: 150px;
-      border: none;
-      cursor: pointer;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      transition: transform 0.1s, background 0.2s;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-    }
-
-    .btn:active {
-      transform: scale(0.95);
-    }
-
-    .btn span {
-      font-size: 48px; /* 加大按鈕文字 */
-      color: white;
-      font-weight: bold;
-    }
-
-    /* 按鈕底部邊條色塊，增加辨識度 */
-    .plus { border-bottom: 8px solid #00c853; }
-    .minus { border-bottom: 8px solid #ff5252; }
-  </style>
-</head>
-<body>
-
-<div class="container">
-  <button class="reset" onclick="reset()">0</button>
-
-  <div class="screen" id="value">0</div>
-
-  <div class="bottom-controls">
-    <button class="btn minus" onclick="change(-1)">
-      <span>- 1</span>
-    </button>
-    
-    <button class="btn plus" onclick="change(1)">
-      <span>+ 1</span>
-    </button>
-  </div>
-</div>
-
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyDWkmKm3TWaHXQ2CPkSJ0MBdsORiECSZ94",
-    authDomain: "siao-b8cf2.firebaseapp.com",
-    databaseURL: "https://siao-b8cf2-default-rtdb.firebaseio.com",
-    projectId: "siao-b8cf2",
-    storageBucket: "siao-b8cf2.firebasestorage.app",
-    messagingSenderId: "51378819186",
-    appId: "1:51378819186:web:35bc056d5b4c17cc12f2eb"
-  };
-
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-  const counterRef = db.ref("counter/value");
-
-  counterRef.on("value", (snapshot) => {
-    const val = snapshot.val() ?? 0;
-    document.getElementById("value").innerText = val;
-  });
-
-  function change(delta) {
-    counterRef.transaction((current) => {
-      return (current || 0) + delta;
-    });
-  }
-
-  function reset() {
-    counterRef.set(0);
-  }
-</script>
-
-</body>
-</html>
+      color: #FFFFFF;      /* 數字白色 */
+      padding: 20px 0;
+      border-
