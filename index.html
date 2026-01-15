@@ -23,36 +23,132 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 15px; /* 縮短標題與數字的間距 */
+      gap: 0px; /* 標題與數字緊密接合 */
     }
 
-    /* 歸零按鈕標題樣式 (目前領藥號) */
+    /* 歸零按鈕標題樣式 (字體放大 3 倍) */
     .reset {
       background: #DCEDC8; /* 淺綠色底 */
       color: #33691E;      /* 深綠色字 */
-      width: 380px;        /* 與數字螢幕同寬或略寬 */
-      padding: 15px 0;
-      border-radius: 15px 15px 5px 5px; /* 上圓下平 */
-      font-size: 32px;
+      width: 600px;        /* 為了容納大字，加寬看板 */
+      padding: 30px 0;     /* 增加上下高度 */
+      border-radius: 30px 30px 0 0; /* 上圓角 */
+      font-size: 96px;     /* 字體放大為約 3 倍 (原 32px) */
       font-weight: bold;
       border: none;
       cursor: pointer;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       text-align: center;
+      line-height: 1.2;
     }
 
     .reset:hover {
-      background: #C5E1A5; /* 滑鼠經過稍微變深 */
+      background: #C5E1A5;
     }
 
     /* 數字顯示螢幕 */
     .screen {
-      font-size: 150px;    /* 領藥號數字加大 */
+      font-size: 200px;    /* 領藥號數字同步加大 */
       font-weight: bold;
-      min-width: 300px;
-      width: 380px;
+      width: 600px;        /* 與標題同寬 */
       text-align: center;
       background: #3E2723; /* 深咖啡色底色 */
       color: #FFFFFF;      /* 數字白色 */
-      padding: 20px 0;
-      border-
+      padding: 40px 0;
+      border-radius: 0 0 40px 40px; /* 下圓角 */
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      border: 6px solid #2D1B19;
+      border-top: none;    /* 移除頂部邊框讓接合更自然 */
+    }
+
+    /* 下方按鈕佈局 */
+    .bottom-controls {
+      display: flex;
+      justify-content: space-between;
+      width: 600px;
+      gap: 30px;
+      margin-top: 30px;
+    }
+
+    .btn {
+      background: #4E342E; 
+      padding: 30px;
+      border-radius: 20px;
+      flex: 1;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.1s;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn span {
+      font-size: 60px;     /* 按鈕文字也稍微加大 */
+      color: white;
+      font-weight: bold;
+    }
+
+    .plus { border-bottom: 10px solid #00c853; }
+    .minus { border-bottom: 10px solid #ff5252; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <button class="reset" onclick="reset()">目前領藥號</button>
+
+  <div class="screen" id="value">0</div>
+
+  <div class="bottom-controls">
+    <button class="btn minus" onclick="change(-1)">
+      <span>- 1</span>
+    </button>
+    
+    <button class="btn plus" onclick="change(1)">
+      <span>+ 1</span>
+    </button>
+  </div>
+</div>
+
+<script>
+  // 您的 Firebase 設定保持不變
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWkmKm3TWaHXQ2CPkSJ0MBdsORiECSZ94",
+    authDomain: "siao-b8cf2.firebaseapp.com",
+    databaseURL: "https://siao-b8cf2-default-rtdb.firebaseio.com",
+    projectId: "siao-b8cf2",
+    storageBucket: "siao-b8cf2.firebasestorage.app",
+    messagingSenderId: "51378819186",
+    appId: "1:51378819186:web:35bc056d5b4c17cc12f2eb"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const counterRef = db.ref("counter/value");
+
+  counterRef.on("value", (snapshot) => {
+    const val = snapshot.val() ?? 0;
+    document.getElementById("value").innerText = val;
+  });
+
+  function change(delta) {
+    counterRef.transaction((current) => {
+      return (current || 0) + delta;
+    });
+  }
+
+  function reset() {
+    if(confirm("確定要將領藥號歸零嗎？")) {
+      counterRef.set(0);
+    }
+  }
+</script>
+
+</body>
+</html>
