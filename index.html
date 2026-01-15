@@ -21,6 +21,7 @@
       overflow: hidden;
     }
 
+    /* 容器佈局 */
     .container {
       display: flex;
       flex-direction: column;
@@ -29,6 +30,7 @@
       max-width: 600px;
     }
 
+    /* 中間內容區塊 */
     .center-content {
       width: 100%;
       display: flex;
@@ -79,6 +81,7 @@
     .orange-text { color: #FF6D00; }
     .green-text { color: #2E7D32; }
 
+    /* 按鈕容器 */
     .bottom-controls {
       display: flex;
       justify-content: space-between;
@@ -112,6 +115,8 @@
         max-width: 98vw;
         gap: 30px;
         align-items: center;
+        /* 將整個容器向上平移 8px */
+        transform: translateY(-8px); 
       }
 
       .bottom-controls {
@@ -137,7 +142,6 @@
       .reset { font-size: 40px; }
       .screen { font-size: 120px; }
 
-      /* 橫向模式：將 margin-top 設定為 5px */
       .announcement { 
         font-size: 18px; 
         margin-top: 5px; 
