@@ -11,10 +11,13 @@
   <style>
     body {
       margin: 0;
+      padding: 0;
+      width: 100vw;
       height: 100vh;
+      min-height: 100vh; /* 確保在電腦版也能填滿視窗 */
       display: flex;
-      justify-content: center;
-      align-items: center;
+      justify-content: center; /* 水平置中 */
+      align-items: center;     /* 垂直置中 */
       background: #C3B091;
       color: white;
       font-family: "Microsoft JhengHei", Arial, sans-serif;
@@ -27,7 +30,8 @@
       flex-direction: column;
       align-items: center;
       width: 95%;
-      max-width: 600px;
+      max-width: 600px; /* 電腦版限制最大寬度，避免過度拉伸 */
+      margin: auto;     /* 再次確保邊距自動分配以達到置中 */
     }
 
     /* 中間內容區塊 */
@@ -81,7 +85,7 @@
     .orange-text { color: #FF6D00; }
     .green-text { color: #2E7D32; }
 
-    /* 按鈕容器 */
+    /* 按鈕容器 - 直向時在下方 */
     .bottom-controls {
       display: flex;
       justify-content: space-between;
@@ -112,10 +116,9 @@
     @media (orientation: landscape) {
       .container {
         flex-direction: row; 
-        max-width: 98vw;
+        max-width: 90vw; /* 橫放時給予更寬的空間 */
         gap: 30px;
         align-items: center;
-        /* 修改點：整體上移 8px 並縮小為 0.9 倍 */
         transform: translateY(-8px) scale(0.9); 
       }
 
@@ -141,7 +144,6 @@
 
       .reset { font-size: 40px; }
       .screen { font-size: 120px; }
-
       .announcement { 
         font-size: 18px; 
         margin-top: 5px; 
