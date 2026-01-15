@@ -2,6 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>同步領藥計數器</title>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -14,110 +15,141 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      background: #C3B091; /* 卡其色背景 */
+      background: #C3B091;
       color: white;
       font-family: "Microsoft JhengHei", Arial, sans-serif;
-      overflow: hidden; /* 防止溢出 */
+      overflow: hidden;
     }
 
+    /* 預設：直向佈局 (Container 由上而下) */
     .container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0px;
+      width: 95%;
+      max-width: 600px;
     }
 
-    /* 標題樣式 */
+    /* 標題區域 */
     .reset {
       background: #DCEDC8;
       color: #33691E;
-      width: 600px;
-      padding: 30px 0;
-      border-radius: 30px 30px 0 0;
-      font-size: 96px;
+      width: 100%;
+      padding: 20px 0;
+      border-radius: 20px 20px 0 0;
+      font-size: clamp(32px, 8vw, 80px); /* 隨螢幕縮放 */
       font-weight: bold;
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       text-align: center;
-      line-height: 1.2;
     }
 
     /* 數字顯示螢幕 */
     .screen {
-      font-size: 200px;
+      font-size: clamp(100px, 25vw, 250px); /* 隨螢幕縮放 */
       font-weight: bold;
-      width: 600px;
+      width: 100%;
       text-align: center;
       background: #3E2723;
       color: #FFFFFF;
-      padding: 20px 0;
-      border-radius: 0 0 40px 40px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      padding: 10px 0;
+      border-radius: 0 0 20px 20px;
       border: 6px solid #2D1B19;
       border-top: none;
     }
 
-    /* 新增：提醒文字樣式 */
+    /* 提醒文字 */
     .announcement {
-      margin-top: 25px;
-      font-size: 32px; /* 字體大小 */
+      margin: 15px 0;
+      font-size: clamp(16px, 4vw, 28px);
       font-weight: bold;
-      color: #000000; /* 預設文字為黑色 */
-      background: rgba(255, 255, 255, 0.4); /* 淡淡的半透明白底，讓黑色字更清晰 */
-      padding: 10px 20px;
+      color: #000000;
+      background: rgba(255, 255, 255, 0.4);
+      padding: 10px;
       border-radius: 10px;
-      width: 600px;
+      width: 100%;
       text-align: center;
     }
+    .orange-text { color: #FF6D00; }
+    .green-text { color: #2E7D32; }
 
-    .orange-text { color: #FF6D00; } /* 橘色 */
-    .green-text { color: #2E7D32; }  /* 綠色 */
-
-    /* 下方操作按鈕 */
+    /* 按鈕容器 */
     .bottom-controls {
       display: flex;
       justify-content: space-between;
-      width: 600px;
-      gap: 30px;
-      margin-top: 25px;
+      width: 100%;
+      gap: 20px;
     }
 
     .btn {
       background: #4E342E; 
-      padding: 30px;
-      border-radius: 20px;
+      padding: 25px;
+      border-radius: 15px;
       flex: 1;
       border: none;
       cursor: pointer;
       display: flex;
       justify-content: center;
       align-items: center;
-      transition: transform 0.1s;
       box-shadow: 0 5px 15px rgba(0,0,0,0.2);
     }
+    .btn span { font-size: 50px; color: white; font-weight: bold; }
+    .plus { border-bottom: 8px solid #00c853; }
+    .minus { border-bottom: 8px solid #ff5252; }
 
-    .btn:active { transform: scale(0.95); }
-    .btn span { font-size: 60px; color: white; font-weight: bold; }
-    .plus { border-bottom: 10px solid #00c853; }
-    .minus { border-bottom: 10px solid #ff5252; }
+    /* --- 核心修改：橫向佈局偵測 --- */
+    @media (orientation: landscape) {
+      .container {
+        flex-direction: row; /* 改為橫向排列 */
+        max-width: 95vw;
+        gap: 30px;
+      }
+
+      /* 中間的數字區塊 */
+      .center-content {
+        display: flex;
+        flex-direction: column;
+        flex: 2; /* 佔據中間較大空間 */
+      }
+
+      /* 讓按鈕變高，放在左右 */
+      .bottom-controls {
+        display: contents; /* 解除原本的 Row 限制 */
+      }
+
+      .btn {
+        flex: 0.5;
+        height: 70vh; /* 讓按鈕變長條狀 */
+      }
+
+      /* 重新排序：-1 在最左，中間是號碼，+1 在最右 */
+      .minus { order: 1; }
+      .center-content { order: 2; }
+      .plus { order: 3; }
+
+      .reset { border-radius: 20px 20px 0 0; }
+      .screen { border-radius: 0 0 20px 20px; }
+    }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <button class="reset" onclick="reset()">目前領藥號</button>
+  <button class="btn minus" onclick="change(-1)">
+    <span>- 1</span>
+  </button>
 
-  <div class="screen" id="value">0</div>
-
-  <div class="announcement">
-    領藥號<span class="orange-text">到號</span>或<span class="orange-text">過號</span>後，請<span class="green-text">依序排隊</span>領藥
+  <div class="center-content">
+    <button class="reset" onclick="reset()">目前領藥號</button>
+    <div class="screen" id="value">0</div>
+    <div class="announcement">
+      領藥號<span class="orange-text">到號</span>或<span class="orange-text">過號</span>後，請<span class="green-text">依序排隊</span>領藥
+    </div>
   </div>
 
-  <div class="bottom-controls">
-    <button class="btn minus" onclick="change(-1)"><span>- 1</span></button>
-    <button class="btn plus" onclick="change(1)"><span>+ 1</span></button>
-  </div>
+  <button class="btn plus" onclick="change(1)">
+    <span>+ 1</span>
+  </button>
 </div>
 
 <script>
