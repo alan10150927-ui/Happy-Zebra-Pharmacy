@@ -21,7 +21,7 @@
       overflow: hidden;
     }
 
-    /* 預設：直向佈局 (Container 由上而下) */
+    /* 預設：直向佈局 */
     .container {
       display: flex;
       flex-direction: column;
@@ -30,23 +30,28 @@
       max-width: 600px;
     }
 
-    /* 標題區域 */
+    .center-content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
     .reset {
       background: #DCEDC8;
       color: #33691E;
       width: 100%;
       padding: 20px 0;
       border-radius: 20px 20px 0 0;
-      font-size: clamp(32px, 8vw, 80px); /* 隨螢幕縮放 */
+      font-size: clamp(32px, 8vw, 80px);
       font-weight: bold;
       border: none;
       cursor: pointer;
       text-align: center;
     }
 
-    /* 數字顯示螢幕 */
     .screen {
-      font-size: clamp(100px, 25vw, 250px); /* 隨螢幕縮放 */
+      font-size: clamp(100px, 25vw, 250px);
       font-weight: bold;
       width: 100%;
       text-align: center;
@@ -56,9 +61,9 @@
       border-radius: 0 0 20px 20px;
       border: 6px solid #2D1B19;
       border-top: none;
+      box-sizing: border-box;
     }
 
-    /* 提醒文字 */
     .announcement {
       margin: 15px 0;
       font-size: clamp(16px, 4vw, 28px);
@@ -69,11 +74,11 @@
       border-radius: 10px;
       width: 100%;
       text-align: center;
+      box-sizing: border-box;
     }
     .orange-text { color: #FF6D00; }
     .green-text { color: #2E7D32; }
 
-    /* 按鈕容器 */
     .bottom-controls {
       display: flex;
       justify-content: space-between;
@@ -97,38 +102,45 @@
     .plus { border-bottom: 8px solid #00c853; }
     .minus { border-bottom: 8px solid #ff5252; }
 
-    /* --- 核心修改：橫向佈局偵測 --- */
+    /* --- 橫向佈局比例調整 --- */
     @media (orientation: landscape) {
       .container {
-        flex-direction: row; /* 改為橫向排列 */
-        max-width: 95vw;
-        gap: 30px;
+        flex-direction: row; 
+        max-width: 98vw;
+        gap: 20px;
+        justify-content: center;
       }
 
-      /* 中間的數字區塊 */
+      /* 中間區域縮小為 0.7 倍 */
       .center-content {
-        display: flex;
-        flex-direction: column;
-        flex: 2; /* 佔據中間較大空間 */
+        flex: 0 1 auto; 
+        width: 420px; /* 原 600px * 0.7 */
+        transform: scale(0.9); /* 視覺上微調比例 */
+        order: 2;
       }
 
-      /* 讓按鈕變高，放在左右 */
-      .bottom-controls {
-        display: contents; /* 解除原本的 Row 限制 */
-      }
-
+      /* 左右按鈕縮小一半 */
       .btn {
-        flex: 0.5;
-        height: 70vh; /* 讓按鈕變長條狀 */
+        flex: 0 0 80px; /* 固定寬度縮小 */
+        height: 60vh; 
+        padding: 10px;
+      }
+      
+      .btn span {
+        font-size: 32px; /* 按鈕文字同步縮小 */
       }
 
-      /* 重新排序：-1 在最左，中間是號碼，+1 在最右 */
+      .bottom-controls {
+        display: contents; 
+      }
+
       .minus { order: 1; }
-      .center-content { order: 2; }
       .plus { order: 3; }
 
-      .reset { border-radius: 20px 20px 0 0; }
-      .screen { border-radius: 0 0 20px 20px; }
+      /* 修正橫向時的字體，避免 0.7 倍後太小 */
+      .reset { font-size: 40px; }
+      .screen { font-size: 120px; }
+      .announcement { font-size: 18px; }
     }
   </style>
 </head>
