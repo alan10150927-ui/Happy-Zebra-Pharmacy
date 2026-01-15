@@ -21,7 +21,7 @@
       overflow: hidden;
     }
 
-    /* 預設：直向佈局 */
+    /* 容器佈局 */
     .container {
       display: flex;
       flex-direction: column;
@@ -30,11 +30,13 @@
       max-width: 600px;
     }
 
+    /* 中間內容區塊 */
     .center-content {
       width: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
+      order: 1; /* 直向時在上方 */
     }
 
     .reset {
@@ -79,11 +81,13 @@
     .orange-text { color: #FF6D00; }
     .green-text { color: #2E7D32; }
 
+    /* 按鈕容器 - 預設直向在下方 */
     .bottom-controls {
       display: flex;
       justify-content: space-between;
       width: 100%;
       gap: 20px;
+      order: 2; /* 直向時在下方 */
     }
 
     .btn {
@@ -97,47 +101,43 @@
       justify-content: center;
       align-items: center;
       box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      transition: transform 0.1s;
     }
+    .btn:active { transform: scale(0.95); }
     .btn span { font-size: 50px; color: white; font-weight: bold; }
     .plus { border-bottom: 8px solid #00c853; }
     .minus { border-bottom: 8px solid #ff5252; }
 
-    /* --- 橫向佈局比例調整 --- */
+    /* --- 橫向模式調整 --- */
     @media (orientation: landscape) {
       .container {
         flex-direction: row; 
         max-width: 98vw;
         gap: 20px;
-        justify-content: center;
       }
 
-      /* 中間區域縮小為 0.7 倍 */
-      .center-content {
-        flex: 0 1 auto; 
-        width: 420px; /* 原 600px * 0.7 */
-        transform: scale(0.9); /* 視覺上微調比例 */
-        order: 2;
-      }
-
-      /* 左右按鈕縮小一半 */
-      .btn {
-        flex: 0 0 80px; /* 固定寬度縮小 */
-        height: 60vh; 
-        padding: 10px;
-      }
-      
-      .btn span {
-        font-size: 32px; /* 按鈕文字同步縮小 */
-      }
-
+      /* 橫向時，解除原本按鈕容器的限制 */
       .bottom-controls {
         display: contents; 
       }
 
-      .minus { order: 1; }
-      .plus { order: 3; }
+      /* 中間區域縮小 */
+      .center-content {
+        width: 420px; 
+        order: 2; /* 橫向時在中間 */
+      }
 
-      /* 修正橫向時的字體，避免 0.7 倍後太小 */
+      /* 按鈕縮小並放在兩側 */
+      .btn {
+        flex: 0 0 80px; 
+        height: 60vh;
+      }
+      .btn span { font-size: 32px; }
+
+      .minus { order: 1; } /* 減號在左 */
+      .plus { order: 3; }  /* 加號在右 */
+
+      /* 橫向字體微調 */
       .reset { font-size: 40px; }
       .screen { font-size: 120px; }
       .announcement { font-size: 18px; }
@@ -147,9 +147,15 @@
 <body>
 
 <div class="container">
-  <button class="btn minus" onclick="change(-1)">
-    <span>- 1</span>
-  </button>
+  <div class="bottom-controls">
+    <button class="btn minus" onclick="change(-1)">
+      <span>- 1</span>
+    </button>
+    
+    <button class="btn plus" onclick="change(1)">
+      <span>+ 1</span>
+    </button>
+  </div>
 
   <div class="center-content">
     <button class="reset" onclick="reset()">目前領藥號</button>
@@ -158,10 +164,6 @@
       領藥號<span class="orange-text">到號</span>或<span class="orange-text">過號</span>後，請<span class="green-text">依序排隊</span>領藥
     </div>
   </div>
-
-  <button class="btn plus" onclick="change(1)">
-    <span>+ 1</span>
-  </button>
 </div>
 
 <script>
