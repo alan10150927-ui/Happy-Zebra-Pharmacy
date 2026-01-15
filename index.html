@@ -36,7 +36,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      order: 1; /* 直向時在上方 */
+      order: 1;
     }
 
     .reset {
@@ -81,13 +81,13 @@
     .orange-text { color: #FF6D00; }
     .green-text { color: #2E7D32; }
 
-    /* 按鈕容器 - 預設直向在下方 */
+    /* 按鈕容器 - 直向在下方 */
     .bottom-controls {
       display: flex;
       justify-content: space-between;
       width: 100%;
       gap: 20px;
-      order: 2; /* 直向時在下方 */
+      order: 2;
     }
 
     .btn {
@@ -113,10 +113,10 @@
       .container {
         flex-direction: row; 
         max-width: 98vw;
-        gap: 20px;
+        gap: 30px;
+        align-items: center; /* 讓內容水平置中對齊 */
       }
 
-      /* 橫向時，解除原本按鈕容器的限制 */
       .bottom-controls {
         display: contents; 
       }
@@ -124,20 +124,21 @@
       /* 中間區域縮小 */
       .center-content {
         width: 420px; 
-        order: 2; /* 橫向時在中間 */
+        order: 2;
       }
 
-      /* 按鈕縮小並放在兩側 */
+      /* 按鈕樣式調整：高度 0.5 倍，寬度 1.2 倍 */
       .btn {
-        flex: 0 0 80px; 
-        height: 60vh;
+        flex: 0 0 100px; /* 寬度增加為約 1.2 倍 */
+        height: 30vh;    /* 高度縮小為原本的一半 */
+        padding: 10px;
+        border-radius: 20px;
       }
       .btn span { font-size: 32px; }
 
-      .minus { order: 1; } /* 減號在左 */
-      .plus { order: 3; }  /* 加號在右 */
+      .minus { order: 1; }
+      .plus { order: 3; }
 
-      /* 橫向字體微調 */
       .reset { font-size: 40px; }
       .screen { font-size: 120px; }
       .announcement { font-size: 18px; }
