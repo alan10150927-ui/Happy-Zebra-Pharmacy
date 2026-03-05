@@ -6,6 +6,8 @@
     <title>快樂斑馬藥局 - 叫號系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入 MQTT 物聯網通訊套件，解決 GitHub 跨裝置連線問題 -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         body {
             background-color: #bda688;
@@ -197,15 +199,17 @@
         
         #connectionStatus {
             position: fixed;
-            bottom: 10px;
+            bottom: 12px;
             right: 15px;
-            font-size: 11px;
-            color: rgba(255,255,255,0.4);
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
             z-index: 100;
-            background: rgba(0,0,0,0.2);
-            padding: 4px 8px;
-            border-radius: 4px;
+            background: rgba(0,0,0,0.5);
+            padding: 6px 12px;
+            border-radius: 8px;
             text-align: right;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
     </style>
 </head>
@@ -243,159 +247,161 @@
     </div>
     
     <div id="connectionStatus">
-        <span id="syncIdDisplay">載入中...</span><br>
-        <span id="statusText">正在連線至雲端...</span>
+        <span id="syncIdDisplay">連線中...</span><br>
+        <span id="statusText">正在尋找伺服器...</span>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    <script>
+        // 基本狀態變數
+        let currentNumber = parseInt(localStorage.getItem('happyZebraBasicNumber')) || 0;
+        let isCalling = false;
+        let isMuted = localStorage.getItem('happyZebraMuted') === 'true';
 
-        // 安全取得設定值
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'happy-zebra-default';
+        const display = document.getElementById('numberDisplay');
+        const statusText = document.getElementById('statusText');
+        const syncIdDisplay = document.getElementById('syncIdDisplay');
+        
+        // 設定專屬通訊頻道，確保不會和其他人干擾
+        const topic = "happy-zebra-queue-sync-alan001006003"; 
+        
+        // 產生這台裝置的唯一 ID
+        const clientId = 'device_' + Math.random().toString(16).substr(2, 8);
 
-        if (!firebaseConfig) {
-            document.getElementById('statusText').innerText = "未偵測到 Firebase 設定";
-        } else {
-            const app = initializeApp(firebaseConfig);
-            const db = getFirestore(app);
-            const auth = getAuth(app);
+        // ================= MQTT 物聯網連線設定 =================
+        // 使用公開且免費穩定的 HiveMQ WebSocket 伺服器
+        const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+            clientId: clientId,
+            clean: true,
+            connectTimeout: 5000,
+            reconnectPeriod: 2000,
+        });
 
-            let currentNumber = 0;
-            let isCalling = false;
-            let isMuted = localStorage.getItem('happyZebraMuted') === 'true';
-            let user = null;
+        // 連線成功時
+        client.on('connect', () => {
+            syncIdDisplay.innerText = "頻道已就緒";
+            statusText.innerText = "● 跨裝置同步已連線";
+            statusText.style.color = "#81c784"; // 綠色提示
+            client.subscribe(topic);
+        });
 
-            const display = document.getElementById('numberDisplay');
-            const statusText = document.getElementById('statusText');
-            const syncIdDisplay = document.getElementById('syncIdDisplay');
-            
-            syncIdDisplay.innerText = `同步 ID: ${appId}`;
+        // 重新連線時
+        client.on('reconnect', () => {
+            statusText.innerText = "重新連線中...";
+            statusText.style.color = "#e57373"; // 紅色提示
+        });
 
-            // 身分驗證
-            const initAuth = async () => {
+        // 接收到別台裝置發出的號碼
+        client.on('message', (t, message) => {
+            if (t === topic) {
                 try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch (e) { statusText.innerText = "驗證出錯"; }
-            };
-
-            onAuthStateChanged(auth, (u) => {
-                user = u;
-                if (user) {
-                    statusText.innerText = "正在同步資料...";
-                    startSync();
-                }
-            });
-
-            initAuth();
-
-            // 啟動雲端同步
-            function startSync() {
-                // 修復路徑：使用偶數層級 (artifacts/appId/public/data/queue/current)
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', 'current');
-                
-                onSnapshot(docRef, (docSnap) => {
-                    statusText.innerText = "● 雲端已連線";
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        const newNumber = data.currentNumber || 0;
+                    const data = JSON.parse(message.toString());
+                    // 如果這則訊息「不是」自己發的，才需要更新畫面
+                    if (data.sender !== clientId) {
+                        const newNum = data.number;
                         
-                        if (newNumber > currentNumber && currentNumber !== 0) {
-                            currentNumber = newNumber;
-                            updateUI(true);
+                        // 判斷是否需要叫號聲音
+                        if (newNum > currentNumber && currentNumber !== 0) {
+                            currentNumber = newNum;
+                            updateUI(true); // 觸發語音
                         } else {
-                            currentNumber = newNumber;
-                            updateUI(false);
+                            currentNumber = newNum;
+                            updateUI(false); // 僅更新數字（例如歸零或減號）
                         }
-                    } else {
-                        setDoc(docRef, { currentNumber: 0 });
+                        localStorage.setItem('happyZebraBasicNumber', currentNumber);
                     }
-                }, (err) => {
-                    statusText.innerText = "同步失敗，請重新整理";
-                    console.error(err);
-                });
-            }
-
-            // 操作方法
-            window.changeNumber = async (delta) => {
-                if (!user) return;
-                const newNum = Math.max(0, currentNumber + delta);
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', 'current');
-                try {
-                    await updateDoc(docRef, { currentNumber: newNum });
-                } catch (e) {
-                    await setDoc(docRef, { currentNumber: newNum });
-                }
-            };
-
-            window.confirmReset = async () => {
-                if (currentNumber === 0) return; 
-                if (confirm("確定要歸零嗎？")) {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', 'current');
-                    await updateDoc(docRef, { currentNumber: 0 });
-                }
-            };
-
-            window.toggleMute = () => {
-                isMuted = !isMuted;
-                localStorage.setItem('happyZebraMuted', isMuted);
-                updateMuteIcon();
-            };
-
-            function updateMuteIcon() {
-                const icon = document.getElementById('muteIcon');
-                const btn = document.getElementById('muteToggleBtn');
-                if (isMuted) {
-                    icon.className = 'fa-solid fa-volume-xmark';
-                    btn.classList.add('is-muted');
-                } else {
-                    icon.className = 'fa-solid fa-volume-high';
-                    btn.classList.remove('is-muted');
+                } catch(e) {
+                    console.error("同步資料解析錯誤", e);
                 }
             }
+        });
+        // =======================================================
 
-            function updateUI(shouldSpeak) {
-                display.classList.remove('slide-up-in');
-                void display.offsetWidth; 
-                display.innerText = currentNumber;
-                display.classList.add('slide-up-in');
-                if (shouldSpeak) speakNumber();
+        window.addEventListener('DOMContentLoaded', () => {
+            display.innerText = currentNumber;
+            updateMuteIcon(); 
+        });
+
+        // 操作：改變號碼並發送至雲端
+        window.changeNumber = (delta) => {
+            currentNumber = Math.max(0, currentNumber + delta);
+            updateUI(delta > 0);
+            localStorage.setItem('happyZebraBasicNumber', currentNumber);
+            
+            // 將新號碼廣播出去 (retain: true 代表新開網頁的手機也能馬上收到最新數字)
+            if(client.connected) {
+                client.publish(topic, JSON.stringify({ sender: clientId, number: currentNumber }), { retain: true });
             }
+        };
 
-            window.speakNumber = () => {
-                if (isCalling) return;
-                isCalling = true;
-                display.classList.add('calling-glow');
-                if (isMuted || !('speechSynthesis' in window)) {
-                    setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 1500);
-                    return;
+        // 操作：歸零並發送至雲端
+        window.confirmReset = () => {
+            if (currentNumber === 0) return; 
+            if (confirm("確定要將目前的領藥號碼歸零嗎？")) {
+                currentNumber = 0;
+                updateUI(false);
+                localStorage.setItem('happyZebraBasicNumber', currentNumber);
+                
+                if(client.connected) {
+                    client.publish(topic, JSON.stringify({ sender: clientId, number: 0 }), { retain: true });
                 }
-                window.speechSynthesis.cancel();
-                const msg = new SpeechSynthesisUtterance(`請 ${currentNumber} 號到櫃檯領藥`);
-                msg.lang = 'zh-TW';
-                msg.rate = 0.95;
-                msg.onend = () => { setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 800); };
-                window.speechSynthesis.speak(msg);
-            };
+            }
+        };
 
+        // UI 與聲音控制邏輯
+        window.toggleMute = () => {
+            isMuted = !isMuted;
+            localStorage.setItem('happyZebraMuted', isMuted);
             updateMuteIcon();
+        };
 
-            document.addEventListener('keydown', (e) => {
-                if (e.repeat) return;
-                switch(e.key) {
-                    case 'ArrowRight': case '+': window.changeNumber(1); break;
-                    case 'ArrowLeft': case '-': window.changeNumber(-1); break;
-                    case ' ': case 'Enter': e.preventDefault(); window.speakNumber(); break;
-                    case 'Backspace': case 'Delete': window.confirmReset(); break;
-                }
-            });
+        function updateMuteIcon() {
+            const icon = document.getElementById('muteIcon');
+            const btn = document.getElementById('muteToggleBtn');
+            if (isMuted) {
+                icon.className = 'fa-solid fa-volume-xmark';
+                btn.classList.add('is-muted');
+            } else {
+                icon.className = 'fa-solid fa-volume-high';
+                btn.classList.remove('is-muted');
+            }
         }
+
+        function updateUI(shouldSpeak) {
+            display.classList.remove('slide-up-in');
+            void display.offsetWidth; 
+            display.innerText = currentNumber;
+            display.classList.add('slide-up-in');
+            if (shouldSpeak) speakNumber();
+        }
+
+        window.speakNumber = () => {
+            if (isCalling) return;
+            isCalling = true;
+            display.classList.add('calling-glow');
+            
+            if (isMuted || !('speechSynthesis' in window)) {
+                setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 1500);
+                return;
+            }
+            
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(`請 ${currentNumber} 號到櫃檯領藥`);
+            msg.lang = 'zh-TW';
+            msg.rate = 0.95;
+            msg.onend = () => { setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 800); };
+            window.speechSynthesis.speak(msg);
+        };
+
+        // 鍵盤操作支援
+        document.addEventListener('keydown', (e) => {
+            if (e.repeat) return;
+            switch(e.key) {
+                case 'ArrowRight': case '+': window.changeNumber(1); break;
+                case 'ArrowLeft': case '-': window.changeNumber(-1); break;
+                case ' ': case 'Enter': e.preventDefault(); window.speakNumber(); break;
+                case 'Backspace': case 'Delete': window.confirmReset(); break;
+            }
+        });
     </script>
 </body>
 </html>
