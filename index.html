@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
-            /* 您指定的卡其/大地色背景 */
             background-color: #bda688;
             font-family: "Microsoft JhengHei", sans-serif;
             display: flex;
@@ -50,7 +49,6 @@
             text-align: center;
         }
 
-        /* 標題區塊：加入 Flex 排版讓 Logo 與文字完美對齊 */
         .header-area {
             background-color: #e5f1e1;
             padding: clamp(15px, 3vh, 25px) 0;
@@ -65,7 +63,6 @@
             gap: clamp(15px, 3vw, 25px);
         }
 
-        /* 斑馬 Logo 專屬設定（放回標題列） */
         .header-logo {
             height: clamp(65px, 10vw, 110px);
             width: auto;
@@ -81,11 +78,8 @@
             transform: scale(1.1) rotate(-5deg);
             filter: drop-shadow(0 8px 12px rgba(0,0,0,0.3));
         }
-        .header-logo:active {
-            transform: scale(0.95);
-        }
+        .header-logo:active { transform: scale(0.95); }
 
-        /* 右上角靜音按鈕設定 */
         .mute-btn {
             position: fixed;
             top: clamp(15px, 4vh, 30px);
@@ -107,19 +101,7 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        .mute-btn:hover {
-            background-color: #5d4037;
-            color: white;
-            transform: scale(1.05);
-        }
-
-        .mute-btn:active {
-            transform: scale(0.95);
-        }
-
-        .mute-btn.is-muted {
-            color: #e57373; /* 靜音時顯示紅色圖示提醒 */
-        }
+        .mute-btn.is-muted { color: #e57373; }
 
         .number-container {
             height: clamp(150px, 35vh, 260px);
@@ -144,27 +126,16 @@
             font-variant-numeric: tabular-nums;
         }
 
-        .slide-up-in {
-            animation: slideUpIn 0.4s ease-out forwards;
-        }
+        .slide-up-in { animation: slideUpIn 0.4s ease-out forwards; }
         @keyframes slideUpIn {
             0% { transform: translateY(100%); opacity: 0; }
             100% { transform: translateY(0); opacity: 1; }
         }
 
-        .calling-glow {
-            animation: callingGlow 1.5s ease-in-out infinite alternate;
-        }
+        .calling-glow { animation: callingGlow 1.5s ease-in-out infinite alternate; }
         @keyframes callingGlow {
-            0% { 
-                transform: scale(1); 
-                text-shadow: 0 0 15px rgba(212, 175, 55, 0.2); 
-            }
-            100% { 
-                transform: scale(1.05); 
-                text-shadow: 0 0 40px rgba(212, 175, 55, 0.8), 0 0 80px rgba(212, 175, 55, 0.4); 
-                color: #fffde7;
-            }
+            0% { transform: scale(1); text-shadow: 0 0 15px rgba(212, 175, 55, 0.2); }
+            100% { transform: scale(1.05); text-shadow: 0 0 40px rgba(212, 175, 55, 0.8), 0 0 80px rgba(212, 175, 55, 0.4); color: #fffde7; }
         }
 
         .footer-area {
@@ -195,117 +166,60 @@
             overflow: hidden;
         }
 
-        .btn-side:hover { filter: brightness(1.15); }
-        .btn-side:active {
-            transform: translateY(5px) scale(0.95);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
+        .btn-side:active { transform: translateY(5px) scale(0.95); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
         .btn-minus { border-bottom: clamp(6px, 1.5vh, 12px) solid #e57373; }
         .btn-plus { border-bottom: clamp(6px, 1.5vh, 12px) solid #81c784; }
 
         .highlight-orange { color: #f4511e; }
         .highlight-green { color: #2e7d32; }
 
-        /* 手機直放模式優化 */
         @media (orientation: portrait) {
-            .app-container {
-                grid-template-columns: 1fr 1fr; 
-                gap: 15px;
-                max-width: 600px;
-            }
+            .app-container { grid-template-columns: 1fr 1fr; gap: 15px; max-width: 600px; }
             .grid-card { grid-column: 1 / 3; grid-row: 1; }
             .grid-minus { grid-column: 1; grid-row: 2; }
             .grid-plus { grid-column: 2; grid-row: 2; }
-
-            .btn-side {
-                width: 100%;
-                height: clamp(80px, 12vh, 120px);
-                border-radius: 20px;
-                font-size: clamp(40px, 10vw, 60px);
-                border-bottom-width: 8px;
-            }
-
-            .btn-side:active {
-                transform: translateY(4px) scale(0.97); 
-                border-bottom-width: 4px; 
-                box-shadow: inset 0 3px 6px rgba(0,0,0,0.2), 0 2px 5px rgba(0,0,0,0.3);
-                filter: brightness(0.9);
-            }
-
-            .header-area {
-                font-size: clamp(26px, 7vw, 40px); 
-                padding: 15px 10px;
-                gap: 12px;
-            }
-
-            .header-logo {
-                height: clamp(80px, 18vw, 120px); /* 手機版標題的斑馬稍微放大 */
-            }
-
-            /* 手機版：加大音量按鈕，確保好按防誤觸 */
-            .mute-btn {
-                top: 15px;
-                right: 15px;
-                width: 50px;
-                height: 50px;
-                font-size: 20px;
-            }
+            .btn-side { width: 100%; height: clamp(80px, 12vh, 120px); border-radius: 20px; font-size: clamp(40px, 10vw, 60px); border-bottom-width: 8px; }
+            .header-area { font-size: clamp(26px, 7vw, 40px); padding: 15px 10px; gap: 12px; }
+            .header-logo { height: clamp(80px, 18vw, 120px); }
+            .mute-btn { top: 15px; right: 15px; width: 50px; height: 50px; font-size: 20px; }
         }
 
-        /* 橫放扁平螢幕優化 */
         @media (orientation: landscape) and (max-height: 500px) {
-            .app-container {
-                /* 手機橫放時整體畫面往上移動，優化視覺重心 */
-                transform: translateY(-8vh);
-            }
+            .app-container { transform: translateY(-8vh); }
             .header-area { font-size: clamp(24px, 7vh, 36px); padding: 8px 0; gap: 15px; }
             .number-container { height: clamp(90px, 40vh, 140px); }
             .number-area { font-size: clamp(80px, 40vh, 120px); }
             .footer-area { font-size: clamp(12px, 3.5vh, 16px); padding: 6px; }
             .header-logo { height: clamp(50px, 15vh, 80px); }
-            
             .btn-side { height: clamp(100px, 50vh, 180px); border-bottom-width: 6px; }
-
-            /* 橫放模式：優化音量按鈕邊距，避開瀏海區 */
-            .mute-btn {
-                top: 15px;
-                right: 25px;
-                width: 45px;
-                height: 45px;
-                font-size: 18px;
-            }
+            .mute-btn { top: 15px; right: 25px; width: 45px; height: 45px; font-size: 18px; }
         }
         
-        /* 連線狀態提示 */
         #connectionStatus {
             position: fixed;
             bottom: 10px;
-            right: 10px;
-            font-size: 10px;
-            color: rgba(255,255,255,0.3);
+            right: 15px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
             z-index: 100;
+            background: rgba(0,0,0,0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-align: right;
         }
     </style>
 </head>
 <body>
 
-    <!-- 獨立於排版之外的右上角聲音開關按鈕 -->
     <button id="muteToggleBtn" class="mute-btn" onclick="toggleMute()" title="開啟/關閉語音">
         <i id="muteIcon" class="fa-solid fa-volume-high"></i>
     </button>
 
     <div class="app-container">
-        <!-- 減少按鈕 -->
-        <div class="grid-minus btn-side btn-minus" onclick="changeNumber(-1)">
-            -
-        </div>
-
-        <!-- 主顯示區 -->
+        <div class="grid-minus btn-side btn-minus" onclick="changeNumber(-1)"> - </div>
         <div class="grid-card">
             <div class="main-card">
                 <div class="header-area">
-                    <!-- 放回標題內的斑馬 Logo -->
                     <img src="logo.png" alt="Logo" class="header-logo" title="點擊斑馬歸零" onclick="confirmReset()" onerror="this.src='logo.jpg'; this.onerror=null;">
                     <span>目前領藥號</span>
                 </div>
@@ -316,202 +230,172 @@
                     領藥號<span class="highlight-orange">到號</span>或<span class="highlight-orange">過號</span>後，請<span class="highlight-green">依序排隊</span>領藥
                 </div>
             </div>
-            
-            <!-- 懸停顯示的快捷鍵提示 -->
             <div class="mt-6 text-[#7a6452] text-sm font-bold tracking-widest hidden md:block drop-shadow-sm relative group cursor-help w-full max-w-[400px]">
                 <div class="opacity-70 group-hover:opacity-0 transition-opacity duration-300 absolute w-full text-center pointer-events-none">
-                    <i class="fa-regular fa-keyboard mr-1"></i> 將滑鼠移至此處查看快捷鍵
+                    <i class="fa-regular fa-keyboard mr-1"></i> 快捷鍵說明
                 </div>
                 <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-center">
-                    [→] 加一號 / [←] 減一號 / [空白鍵] 再次叫號 / 點擊斑馬或 [Del] 歸零
+                    [→] 加一號 / [←] 減一號 / [空白鍵] 叫號 / 點擊斑馬歸零
                 </div>
             </div>
         </div>
-
-        <!-- 增加按鈕 -->
-        <div class="grid-plus btn-side btn-plus" onclick="changeNumber(1)">
-            +
-        </div>
+        <div class="grid-plus btn-side btn-plus" onclick="changeNumber(1)"> + </div>
     </div>
     
-    <div id="connectionStatus">正在連線至雲端...</div>
+    <div id="connectionStatus">
+        <span id="syncIdDisplay">載入中...</span><br>
+        <span id="statusText">正在連線至雲端...</span>
+    </div>
 
-    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // Firebase 設定
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'happy-zebra-pharmacy';
+        // 安全取得設定值
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'happy-zebra-default';
 
-        // 狀態變數
-        let currentNumber = 0;
-        let isCalling = false;
-        let isMuted = localStorage.getItem('happyZebraMuted') === 'true';
-        let user = null;
+        if (!firebaseConfig) {
+            document.getElementById('statusText').innerText = "未偵測到 Firebase 設定";
+        } else {
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            const auth = getAuth(app);
 
-        // 初始化 UI
-        const display = document.getElementById('numberDisplay');
-        const statusEl = document.getElementById('connectionStatus');
+            let currentNumber = 0;
+            let isCalling = false;
+            let isMuted = localStorage.getItem('happyZebraMuted') === 'true';
+            let user = null;
 
-        // 1. 先處理身分驗證 (Rule 3)
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                statusEl.innerText = "驗證失敗，請重新整理";
-            }
-        };
-
-        onAuthStateChanged(auth, (u) => {
-            user = u;
-            if (user) {
-                statusEl.innerText = "雲端同步中";
-                startSync(); // 驗證成功後開始監聽資料
-            }
-        });
-
-        initAuth();
-
-        // 2. 監聽雲端資料 (Rule 1 & 2)
-        function startSync() {
-            // 資料路徑: /artifacts/{appId}/public/data/queue
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue_info');
+            const display = document.getElementById('numberDisplay');
+            const statusText = document.getElementById('statusText');
+            const syncIdDisplay = document.getElementById('syncIdDisplay');
             
-            onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    const newNumber = data.currentNumber || 0;
-                    
-                    // 如果雲端號碼變大，觸發叫號
-                    if (newNumber > currentNumber && currentNumber !== 0) {
-                        currentNumber = newNumber;
-                        updateUI(true); // 觸發語音叫號
+            syncIdDisplay.innerText = `同步 ID: ${appId}`;
+
+            // 身分驗證
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
-                        currentNumber = newNumber;
-                        updateUI(false); // 僅更新畫面
+                        await signInAnonymously(auth);
                     }
-                } else {
-                    // 如果資料夾是空的，初始化一個
-                    setDoc(docRef, { currentNumber: 0 });
+                } catch (e) { statusText.innerText = "驗證出錯"; }
+            };
+
+            onAuthStateChanged(auth, (u) => {
+                user = u;
+                if (user) {
+                    statusText.innerText = "正在同步資料...";
+                    startSync();
                 }
-            }, (error) => {
-                statusEl.innerText = "同步出錯，請檢查網路";
+            });
+
+            initAuth();
+
+            // 啟動雲端同步
+            function startSync() {
+                // 修復路徑：使用偶數層級 (artifacts/appId/public/data/queue/current)
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', 'current');
+                
+                onSnapshot(docRef, (docSnap) => {
+                    statusText.innerText = "● 雲端已連線";
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        const newNumber = data.currentNumber || 0;
+                        
+                        if (newNumber > currentNumber && currentNumber !== 0) {
+                            currentNumber = newNumber;
+                            updateUI(true);
+                        } else {
+                            currentNumber = newNumber;
+                            updateUI(false);
+                        }
+                    } else {
+                        setDoc(docRef, { currentNumber: 0 });
+                    }
+                }, (err) => {
+                    statusText.innerText = "同步失敗，請重新整理";
+                    console.error(err);
+                });
+            }
+
+            // 操作方法
+            window.changeNumber = async (delta) => {
+                if (!user) return;
+                const newNum = Math.max(0, currentNumber + delta);
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', 'current');
+                try {
+                    await updateDoc(docRef, { currentNumber: newNum });
+                } catch (e) {
+                    await setDoc(docRef, { currentNumber: newNum });
+                }
+            };
+
+            window.confirmReset = async () => {
+                if (currentNumber === 0) return; 
+                if (confirm("確定要歸零嗎？")) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue', 'current');
+                    await updateDoc(docRef, { currentNumber: 0 });
+                }
+            };
+
+            window.toggleMute = () => {
+                isMuted = !isMuted;
+                localStorage.setItem('happyZebraMuted', isMuted);
+                updateMuteIcon();
+            };
+
+            function updateMuteIcon() {
+                const icon = document.getElementById('muteIcon');
+                const btn = document.getElementById('muteToggleBtn');
+                if (isMuted) {
+                    icon.className = 'fa-solid fa-volume-xmark';
+                    btn.classList.add('is-muted');
+                } else {
+                    icon.className = 'fa-solid fa-volume-high';
+                    btn.classList.remove('is-muted');
+                }
+            }
+
+            function updateUI(shouldSpeak) {
+                display.classList.remove('slide-up-in');
+                void display.offsetWidth; 
+                display.innerText = currentNumber;
+                display.classList.add('slide-up-in');
+                if (shouldSpeak) speakNumber();
+            }
+
+            window.speakNumber = () => {
+                if (isCalling) return;
+                isCalling = true;
+                display.classList.add('calling-glow');
+                if (isMuted || !('speechSynthesis' in window)) {
+                    setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 1500);
+                    return;
+                }
+                window.speechSynthesis.cancel();
+                const msg = new SpeechSynthesisUtterance(`請 ${currentNumber} 號到櫃檯領藥`);
+                msg.lang = 'zh-TW';
+                msg.rate = 0.95;
+                msg.onend = () => { setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 800); };
+                window.speechSynthesis.speak(msg);
+            };
+
+            updateMuteIcon();
+
+            document.addEventListener('keydown', (e) => {
+                if (e.repeat) return;
+                switch(e.key) {
+                    case 'ArrowRight': case '+': window.changeNumber(1); break;
+                    case 'ArrowLeft': case '-': window.changeNumber(-1); break;
+                    case ' ': case 'Enter': e.preventDefault(); window.speakNumber(); break;
+                    case 'Backspace': case 'Delete': window.confirmReset(); break;
+                }
             });
         }
-
-        // 3. 修改資料的方法
-        window.changeNumber = async (delta) => {
-            if (!user) return;
-            const newNum = Math.max(0, currentNumber + delta);
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue_info');
-            try {
-                await updateDoc(docRef, { currentNumber: newNum });
-            } catch (e) {
-                // 如果文件不存在則建立
-                await setDoc(docRef, { currentNumber: newNum });
-            }
-        };
-
-        window.confirmReset = async () => {
-            if (currentNumber === 0) return; 
-            if (confirm("確定要將目前的領藥號碼歸零嗎？")) {
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue_info');
-                await updateDoc(docRef, { currentNumber: 0 });
-            }
-        };
-
-        // UI 與聲音控制
-        window.toggleMute = () => {
-            isMuted = !isMuted;
-            localStorage.setItem('happyZebraMuted', isMuted);
-            updateMuteIcon();
-        };
-
-        function updateMuteIcon() {
-            const icon = document.getElementById('muteIcon');
-            const btn = document.getElementById('muteToggleBtn');
-            if (isMuted) {
-                icon.className = 'fa-solid fa-volume-xmark';
-                btn.classList.add('is-muted');
-            } else {
-                icon.className = 'fa-solid fa-volume-high';
-                btn.classList.remove('is-muted');
-            }
-        }
-
-        function updateUI(shouldSpeak) {
-            display.classList.remove('slide-up-in');
-            void display.offsetWidth; 
-            display.innerText = currentNumber;
-            display.classList.add('slide-up-in');
-            
-            if (shouldSpeak) {
-                speakNumber();
-            }
-        }
-
-        window.speakNumber = () => {
-            if (isCalling) return;
-            isCalling = true;
-            display.classList.add('calling-glow');
-
-            if (isMuted || !('speechSynthesis' in window)) {
-                setTimeout(() => {
-                    display.classList.remove('calling-glow');
-                    isCalling = false;
-                }, 1500);
-                return;
-            }
-
-            window.speechSynthesis.cancel();
-            const msg = new SpeechSynthesisUtterance(`請 ${currentNumber} 號到櫃檯領藥`);
-            msg.lang = 'zh-TW';
-            msg.rate = 0.95;
-            msg.onend = () => {
-                setTimeout(() => {
-                    display.classList.remove('calling-glow');
-                    isCalling = false;
-                }, 800);
-            };
-            window.speechSynthesis.speak(msg);
-        };
-
-        // 初始化靜音圖示
-        updateMuteIcon();
-
-        // 鍵盤支援
-        document.addEventListener('keydown', (e) => {
-            if (e.repeat) return;
-            switch(e.key) {
-                case 'ArrowRight':
-                case '+':
-                    window.changeNumber(1);
-                    break;
-                case 'ArrowLeft':
-                case '-':
-                    window.changeNumber(-1);
-                    break;
-                case ' ':
-                case 'Enter':
-                    e.preventDefault(); 
-                    window.speakNumber();
-                    break;
-                case 'Backspace':
-                case 'Delete':
-                    window.confirmReset();
-                    break;
-            }
-        });
     </script>
 </body>
 </html>
