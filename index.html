@@ -6,7 +6,6 @@
     <title>快樂斑馬藥局 - 叫號系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- 改用更穩定、較不易被阻擋的 cdnjs 來源 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.3.5/mqtt.min.js"></script>
     <style>
         body {
@@ -164,7 +163,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
             -webkit-tap-highlight-color: transparent;
-            /* 針對手機瀏覽器：加上這行能消除 click 事件的 300 毫秒延遲 */
             touch-action: manipulation;
             position: relative;
             overflow: hidden;
@@ -174,7 +172,6 @@
         .btn-minus { border-bottom: clamp(6px, 1.5vh, 12px) solid #e57373; }
         .btn-plus { border-bottom: clamp(6px, 1.5vh, 12px) solid #81c784; }
 
-        /* 水波紋動畫特效 */
         .ripple-effect {
             position: absolute;
             border-radius: 50%;
@@ -185,10 +182,7 @@
         }
 
         @keyframes rippleAnim {
-            to {
-                transform: scale(3);
-                opacity: 0;
-            }
+            to { transform: scale(3); opacity: 0; }
         }
 
         .highlight-orange { color: #f4511e; }
@@ -274,25 +268,30 @@
 
     <script>
         // ========================================================
-        // 第一部分：手機端語音強制解鎖機制 (超級重要！)
+        // 第一部分：手機端語音強制解鎖機制 (強化版)
         // ========================================================
-        // 因為手機版 Safari/Chrome 嚴格限制語音必須由「使用者互動」觸發，
-        // 加上這個機制，只要在螢幕點一下，就會偷偷播放一段空音檔解鎖權限，
-        // 確保後續接收到雲端資料時，手機能正常發聲。
         let speechUnlocked = false;
         function unlockSpeech() {
             if (!speechUnlocked && 'speechSynthesis' in window) {
-                const silentUtterance = new SpeechSynthesisUtterance('');
+                // 發出一個極短的空白無聲音訊，徹底喚醒 iOS 語音引擎
+                const silentUtterance = new SpeechSynthesisUtterance(' ');
+                silentUtterance.volume = 0;
+                silentUtterance.rate = 2;
                 window.speechSynthesis.speak(silentUtterance);
+                window.speechSynthesis.resume(); // Safari 必備
                 speechUnlocked = true;
             }
-            // 解鎖後就移除監聽，避免耗效能
-            document.removeEventListener('touchstart', unlockSpeech);
-            document.removeEventListener('click', unlockSpeech);
+            document.body.removeEventListener('touchstart', unlockSpeech);
+            document.body.removeEventListener('click', unlockSpeech);
+            document.body.removeEventListener('pointerdown', unlockSpeech);
         }
-        document.addEventListener('touchstart', unlockSpeech, { once: true });
-        document.addEventListener('click', unlockSpeech, { once: true });
+        // 綁定到所有的觸控與點擊事件，確保第一次互動一定能解鎖
+        document.body.addEventListener('touchstart', unlockSpeech, { once: true });
+        document.body.addEventListener('click', unlockSpeech, { once: true });
+        document.body.addEventListener('pointerdown', unlockSpeech, { once: true });
 
+        // 防止 Chrome 語音被垃圾回收機制中斷
+        window.sysUtterances = [];
 
         // ========================================================
         // 第二部分：核心 UI 邏輯
@@ -300,7 +299,7 @@
         let currentNumber = parseInt(localStorage.getItem('happyZebraBasicNumber')) || 0;
         let isCalling = false;
         let isMuted = localStorage.getItem('happyZebraMuted') === 'true';
-        let client = null; // 預留給雲端的變數
+        let client = null; 
         const topic = "happy-zebra-queue-sync-alan001006003"; 
         const clientId = 'device_' + Math.random().toString(16).substr(2, 8);
 
@@ -308,7 +307,6 @@
         const statusText = document.getElementById('statusText');
         const syncIdDisplay = document.getElementById('syncIdDisplay');
         
-        // 更新畫面
         function updateUI(shouldSpeak) {
             display.classList.remove('slide-up-in');
             void display.offsetWidth; 
@@ -317,7 +315,6 @@
             if (shouldSpeak) speakNumber();
         }
 
-        // 改變號碼
         function changeNumber(delta) {
             currentNumber = Math.max(0, currentNumber + delta);
             updateUI(delta > 0);
@@ -330,7 +327,6 @@
             } catch(e) { console.log("雲端同步暫時不可用"); }
         }
 
-        // 歸零確認
         function confirmReset() {
             if (currentNumber === 0) return; 
             if (confirm("確定要將目前的領藥號碼歸零嗎？")) {
@@ -346,11 +342,10 @@
             }
         }
 
-        // 語音播報 (加入防呆機制避免當機)
+        // 終極防當機語音播報
         function speakNumber() {
             if (isCalling) return;
             
-            // 無論有沒有聲音，發光動畫都要執行
             display.classList.add('calling-glow');
             
             if (isMuted || !('speechSynthesis' in window)) {
@@ -360,32 +355,49 @@
             }
             
             isCalling = true;
-            window.speechSynthesis.cancel(); // 停止上一句
-            const msg = new SpeechSynthesisUtterance(`請 ${currentNumber} 號到櫃檯領藥`);
-            msg.lang = 'zh-TW';
-            msg.rate = 0.95;
             
-            // 語音結束後的清理動作
-            let isEnded = false;
-            const cleanup = () => {
-                if(isEnded) return;
-                isEnded = true;
-                setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 800);
+            // 解決 iOS Safari cancel() 會導致整個語音系統當機的 Bug
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+            }
+
+            const playVoice = () => {
+                const msg = new SpeechSynthesisUtterance(`請 ${currentNumber} 號到櫃檯領藥`);
+                msg.lang = 'zh-TW';
+                msg.rate = 0.95;
+                msg.volume = 1;
+                
+                window.sysUtterances.push(msg); // 防止 GC
+                
+                let isEnded = false;
+                const cleanup = () => {
+                    if(isEnded) return;
+                    isEnded = true;
+                    setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 800);
+                    window.sysUtterances = window.sysUtterances.filter(u => u !== msg); // 清理記憶體
+                };
+
+                msg.onend = cleanup;
+                msg.onerror = cleanup;
+                
+                // 強制防呆：如果手機語音引擎卡死 (onend沒觸發)，4秒後強制解鎖按鈕
+                setTimeout(cleanup, 4000); 
+
+                window.speechSynthesis.resume(); // 喚醒引擎
+                window.speechSynthesis.speak(msg);
             };
 
-            msg.onend = cleanup;
-            msg.onerror = cleanup;
-            // 強制防呆：如果手機語音引擎卡死 (onend沒觸發)，4秒後強制解鎖按鈕
-            setTimeout(cleanup, 4000); 
-
-            window.speechSynthesis.speak(msg);
+            // 給予極短的延遲，避開 iOS cancel 衝突
+            setTimeout(playVoice, 50);
         }
 
-        // 音量切換
         function toggleMute() {
             isMuted = !isMuted;
             localStorage.setItem('happyZebraMuted', isMuted);
             updateMuteIcon();
+            
+            // 如果解除靜音，順便幫忙解鎖語音
+            if (!isMuted) unlockSpeech();
         }
 
         function updateMuteIcon() {
@@ -401,16 +413,14 @@
         }
 
         // ========================================================
-        // 第三部分：綁定按鈕與特效 (完美兼顧觸感與瀏覽器安全)
+        // 第三部分：綁定按鈕與特效
         // ========================================================
         function bindEvents() {
             const btnMinus = document.getElementById('btnMinus');
             const btnPlus = document.getElementById('btnPlus');
             
-            // 將視覺效果與實際功能「分流」，繞過手機安全審查
             const addRippleAndExecute = (element, callback) => {
-                
-                // 1. 視覺與震動回饋 (使用 pointerdown 確保零延遲手感)
+                // 視覺與震動回饋
                 element.addEventListener('pointerdown', function(e) {
                     if (navigator.vibrate) navigator.vibrate(15);
                     const circle = document.createElement("span");
@@ -430,7 +440,7 @@
                     setTimeout(() => circle.remove(), 600);
                 });
 
-                // 2. 實際執行邏輯 (使用 click 確保手機瀏覽器 100% 願意給予語音權限)
+                // 實際執行邏輯 
                 element.addEventListener('click', function(e) {
                     callback();
                 });
@@ -439,12 +449,10 @@
             addRippleAndExecute(btnMinus, () => changeNumber(-1));
             addRippleAndExecute(btnPlus, () => changeNumber(1));
 
-            // 其他點擊綁定
             document.getElementById('zebraLogo').addEventListener('click', confirmReset);
             document.getElementById('muteToggleBtn').addEventListener('click', toggleMute);
             document.getElementById('numberDisplayContainer').addEventListener('click', speakNumber);
 
-            // 鍵盤綁定
             document.addEventListener('keydown', (e) => {
                 if (e.repeat) return;
                 switch(e.key) {
@@ -456,7 +464,6 @@
             });
         }
 
-        // 初始化畫面與按鈕
         window.addEventListener('DOMContentLoaded', () => {
             display.innerText = currentNumber;
             updateMuteIcon(); 
@@ -464,7 +471,7 @@
         });
 
         // ========================================================
-        // 第四部分：雲端同步 (獨立運行，若失敗絕不影響上方功能)
+        // 第四部分：雲端同步
         // ========================================================
         try {
             if (typeof mqtt !== 'undefined') {
