@@ -164,6 +164,8 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
             -webkit-tap-highlight-color: transparent;
+            /* 針對手機瀏覽器：加上這行能消除 click 事件的 300 毫秒延遲 */
+            touch-action: manipulation;
             position: relative;
             overflow: hidden;
         }
@@ -237,7 +239,6 @@
     </button>
 
     <div class="app-container">
-        <!-- 取代原本的 onclick，改用 id 綁定高質感事件 -->
         <div id="btnMinus" class="grid-minus btn-side btn-minus"> - </div>
         
         <div class="grid-card">
@@ -263,7 +264,6 @@
             </div>
         </div>
         
-        <!-- 取代原本的 onclick，改用 id 綁定高質感事件 -->
         <div id="btnPlus" class="grid-plus btn-side btn-plus"> + </div>
     </div>
     
@@ -274,7 +274,28 @@
 
     <script>
         // ========================================================
-        // 第一部分：核心 UI 邏輯 (保證即使沒有網路，按鈕也絕對能按)
+        // 第一部分：手機端語音強制解鎖機制 (超級重要！)
+        // ========================================================
+        // 因為手機版 Safari/Chrome 嚴格限制語音必須由「使用者互動」觸發，
+        // 加上這個機制，只要在螢幕點一下，就會偷偷播放一段空音檔解鎖權限，
+        // 確保後續接收到雲端資料時，手機能正常發聲。
+        let speechUnlocked = false;
+        function unlockSpeech() {
+            if (!speechUnlocked && 'speechSynthesis' in window) {
+                const silentUtterance = new SpeechSynthesisUtterance('');
+                window.speechSynthesis.speak(silentUtterance);
+                speechUnlocked = true;
+            }
+            // 解鎖後就移除監聽，避免耗效能
+            document.removeEventListener('touchstart', unlockSpeech);
+            document.removeEventListener('click', unlockSpeech);
+        }
+        document.addEventListener('touchstart', unlockSpeech, { once: true });
+        document.addEventListener('click', unlockSpeech, { once: true });
+
+
+        // ========================================================
+        // 第二部分：核心 UI 邏輯
         // ========================================================
         let currentNumber = parseInt(localStorage.getItem('happyZebraBasicNumber')) || 0;
         let isCalling = false;
@@ -296,13 +317,12 @@
             if (shouldSpeak) speakNumber();
         }
 
-        // 改變號碼 (按鈕呼叫此功能)
+        // 改變號碼
         function changeNumber(delta) {
             currentNumber = Math.max(0, currentNumber + delta);
             updateUI(delta > 0);
             localStorage.setItem('happyZebraBasicNumber', currentNumber);
             
-            // 嘗試推播到雲端 (不影響本地運作)
             try {
                 if(client && client.connected) {
                     client.publish(topic, JSON.stringify({ sender: clientId, number: currentNumber }), { retain: true });
@@ -326,22 +346,38 @@
             }
         }
 
-        // 語音播報
+        // 語音播報 (加入防呆機制避免當機)
         function speakNumber() {
             if (isCalling) return;
-            isCalling = true;
+            
+            // 無論有沒有聲音，發光動畫都要執行
             display.classList.add('calling-glow');
             
             if (isMuted || !('speechSynthesis' in window)) {
+                isCalling = true;
                 setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 1500);
                 return;
             }
             
-            window.speechSynthesis.cancel();
+            isCalling = true;
+            window.speechSynthesis.cancel(); // 停止上一句
             const msg = new SpeechSynthesisUtterance(`請 ${currentNumber} 號到櫃檯領藥`);
             msg.lang = 'zh-TW';
             msg.rate = 0.95;
-            msg.onend = () => { setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 800); };
+            
+            // 語音結束後的清理動作
+            let isEnded = false;
+            const cleanup = () => {
+                if(isEnded) return;
+                isEnded = true;
+                setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 800);
+            };
+
+            msg.onend = cleanup;
+            msg.onerror = cleanup;
+            // 強制防呆：如果手機語音引擎卡死 (onend沒觸發)，4秒後強制解鎖按鈕
+            setTimeout(cleanup, 4000); 
+
             window.speechSynthesis.speak(msg);
         }
 
@@ -365,17 +401,18 @@
         }
 
         // ========================================================
-        // 第二部分：綁定按鈕與特效 (使用 pointerdown 確保手機點擊零延遲)
+        // 第三部分：綁定按鈕與特效 (完美兼顧觸感與瀏覽器安全)
         // ========================================================
         function bindEvents() {
             const btnMinus = document.getElementById('btnMinus');
             const btnPlus = document.getElementById('btnPlus');
             
-            // 綁定加減號 (包含水波紋與震動特效)
+            // 將視覺效果與實際功能「分流」，繞過手機安全審查
             const addRippleAndExecute = (element, callback) => {
+                
+                // 1. 視覺與震動回饋 (使用 pointerdown 確保零延遲手感)
                 element.addEventListener('pointerdown', function(e) {
                     if (navigator.vibrate) navigator.vibrate(15);
-                    
                     const circle = document.createElement("span");
                     const diameter = Math.max(element.clientWidth, element.clientHeight);
                     const radius = diameter / 2;
@@ -391,7 +428,10 @@
 
                     element.appendChild(circle);
                     setTimeout(() => circle.remove(), 600);
-                    
+                });
+
+                // 2. 實際執行邏輯 (使用 click 確保手機瀏覽器 100% 願意給予語音權限)
+                element.addEventListener('click', function(e) {
                     callback();
                 });
             };
@@ -424,7 +464,7 @@
         });
 
         // ========================================================
-        // 第三部分：雲端同步 (獨立運行，若失敗絕不影響上方功能)
+        // 第四部分：雲端同步 (獨立運行，若失敗絕不影響上方功能)
         // ========================================================
         try {
             if (typeof mqtt !== 'undefined') {
