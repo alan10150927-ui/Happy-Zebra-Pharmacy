@@ -6,8 +6,8 @@
     <title>快樂斑馬藥局 - 叫號系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- 引入 MQTT 物聯網通訊套件，解決 GitHub 跨裝置連線問題 -->
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <!-- 改用更穩定、較不易被阻擋的 cdnjs 來源 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.3.5/mqtt.min.js"></script>
     <style>
         body {
             background-color: #bda688;
@@ -172,6 +172,23 @@
         .btn-minus { border-bottom: clamp(6px, 1.5vh, 12px) solid #e57373; }
         .btn-plus { border-bottom: clamp(6px, 1.5vh, 12px) solid #81c784; }
 
+        /* 水波紋動畫特效 */
+        .ripple-effect {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0);
+            animation: rippleAnim 0.6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes rippleAnim {
+            to {
+                transform: scale(3);
+                opacity: 0;
+            }
+        }
+
         .highlight-orange { color: #f4511e; }
         .highlight-green { color: #2e7d32; }
 
@@ -215,19 +232,21 @@
 </head>
 <body>
 
-    <button id="muteToggleBtn" class="mute-btn" onclick="toggleMute()" title="開啟/關閉語音">
+    <button id="muteToggleBtn" class="mute-btn" title="開啟/關閉語音">
         <i id="muteIcon" class="fa-solid fa-volume-high"></i>
     </button>
 
     <div class="app-container">
-        <div class="grid-minus btn-side btn-minus" onclick="changeNumber(-1)"> - </div>
+        <!-- 取代原本的 onclick，改用 id 綁定高質感事件 -->
+        <div id="btnMinus" class="grid-minus btn-side btn-minus"> - </div>
+        
         <div class="grid-card">
             <div class="main-card">
                 <div class="header-area">
-                    <img src="logo.png" alt="Logo" class="header-logo" title="點擊斑馬歸零" onclick="confirmReset()" onerror="this.src='logo.jpg'; this.onerror=null;">
+                    <img src="logo.png" alt="Logo" class="header-logo" id="zebraLogo" title="點擊斑馬歸零" onerror="this.src='logo.jpg'; this.onerror=null;">
                     <span>目前領藥號</span>
                 </div>
-                <div class="number-container" onclick="speakNumber()">
+                <div class="number-container" id="numberDisplayContainer">
                     <div id="numberDisplay" class="number-area">0</div>
                 </div>
                 <div class="footer-area">
@@ -243,129 +262,32 @@
                 </div>
             </div>
         </div>
-        <div class="grid-plus btn-side btn-plus" onclick="changeNumber(1)"> + </div>
+        
+        <!-- 取代原本的 onclick，改用 id 綁定高質感事件 -->
+        <div id="btnPlus" class="grid-plus btn-side btn-plus"> + </div>
     </div>
     
     <div id="connectionStatus">
-        <span id="syncIdDisplay">連線中...</span><br>
-        <span id="statusText">正在尋找伺服器...</span>
+        <span id="syncIdDisplay">單機模式運作中</span><br>
+        <span id="statusText">等待連線...</span>
     </div>
 
     <script>
-        // 基本狀態變數
+        // ========================================================
+        // 第一部分：核心 UI 邏輯 (保證即使沒有網路，按鈕也絕對能按)
+        // ========================================================
         let currentNumber = parseInt(localStorage.getItem('happyZebraBasicNumber')) || 0;
         let isCalling = false;
         let isMuted = localStorage.getItem('happyZebraMuted') === 'true';
+        let client = null; // 預留給雲端的變數
+        const topic = "happy-zebra-queue-sync-alan001006003"; 
+        const clientId = 'device_' + Math.random().toString(16).substr(2, 8);
 
         const display = document.getElementById('numberDisplay');
         const statusText = document.getElementById('statusText');
         const syncIdDisplay = document.getElementById('syncIdDisplay');
         
-        // 設定專屬通訊頻道，確保不會和其他人干擾
-        const topic = "happy-zebra-queue-sync-alan001006003"; 
-        
-        // 產生這台裝置的唯一 ID
-        const clientId = 'device_' + Math.random().toString(16).substr(2, 8);
-
-        // ================= MQTT 物聯網連線設定 =================
-        // 使用公開且免費穩定的 HiveMQ WebSocket 伺服器
-        const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
-            clientId: clientId,
-            clean: true,
-            connectTimeout: 5000,
-            reconnectPeriod: 2000,
-        });
-
-        // 連線成功時
-        client.on('connect', () => {
-            syncIdDisplay.innerText = "頻道已就緒";
-            statusText.innerText = "● 跨裝置同步已連線";
-            statusText.style.color = "#81c784"; // 綠色提示
-            client.subscribe(topic);
-        });
-
-        // 重新連線時
-        client.on('reconnect', () => {
-            statusText.innerText = "重新連線中...";
-            statusText.style.color = "#e57373"; // 紅色提示
-        });
-
-        // 接收到別台裝置發出的號碼
-        client.on('message', (t, message) => {
-            if (t === topic) {
-                try {
-                    const data = JSON.parse(message.toString());
-                    // 如果這則訊息「不是」自己發的，才需要更新畫面
-                    if (data.sender !== clientId) {
-                        const newNum = data.number;
-                        
-                        // 判斷是否需要叫號聲音
-                        if (newNum > currentNumber && currentNumber !== 0) {
-                            currentNumber = newNum;
-                            updateUI(true); // 觸發語音
-                        } else {
-                            currentNumber = newNum;
-                            updateUI(false); // 僅更新數字（例如歸零或減號）
-                        }
-                        localStorage.setItem('happyZebraBasicNumber', currentNumber);
-                    }
-                } catch(e) {
-                    console.error("同步資料解析錯誤", e);
-                }
-            }
-        });
-        // =======================================================
-
-        window.addEventListener('DOMContentLoaded', () => {
-            display.innerText = currentNumber;
-            updateMuteIcon(); 
-        });
-
-        // 操作：改變號碼並發送至雲端
-        window.changeNumber = (delta) => {
-            currentNumber = Math.max(0, currentNumber + delta);
-            updateUI(delta > 0);
-            localStorage.setItem('happyZebraBasicNumber', currentNumber);
-            
-            // 將新號碼廣播出去 (retain: true 代表新開網頁的手機也能馬上收到最新數字)
-            if(client.connected) {
-                client.publish(topic, JSON.stringify({ sender: clientId, number: currentNumber }), { retain: true });
-            }
-        };
-
-        // 操作：歸零並發送至雲端
-        window.confirmReset = () => {
-            if (currentNumber === 0) return; 
-            if (confirm("確定要將目前的領藥號碼歸零嗎？")) {
-                currentNumber = 0;
-                updateUI(false);
-                localStorage.setItem('happyZebraBasicNumber', currentNumber);
-                
-                if(client.connected) {
-                    client.publish(topic, JSON.stringify({ sender: clientId, number: 0 }), { retain: true });
-                }
-            }
-        };
-
-        // UI 與聲音控制邏輯
-        window.toggleMute = () => {
-            isMuted = !isMuted;
-            localStorage.setItem('happyZebraMuted', isMuted);
-            updateMuteIcon();
-        };
-
-        function updateMuteIcon() {
-            const icon = document.getElementById('muteIcon');
-            const btn = document.getElementById('muteToggleBtn');
-            if (isMuted) {
-                icon.className = 'fa-solid fa-volume-xmark';
-                btn.classList.add('is-muted');
-            } else {
-                icon.className = 'fa-solid fa-volume-high';
-                btn.classList.remove('is-muted');
-            }
-        }
-
+        // 更新畫面
         function updateUI(shouldSpeak) {
             display.classList.remove('slide-up-in');
             void display.offsetWidth; 
@@ -374,7 +296,38 @@
             if (shouldSpeak) speakNumber();
         }
 
-        window.speakNumber = () => {
+        // 改變號碼 (按鈕呼叫此功能)
+        function changeNumber(delta) {
+            currentNumber = Math.max(0, currentNumber + delta);
+            updateUI(delta > 0);
+            localStorage.setItem('happyZebraBasicNumber', currentNumber);
+            
+            // 嘗試推播到雲端 (不影響本地運作)
+            try {
+                if(client && client.connected) {
+                    client.publish(topic, JSON.stringify({ sender: clientId, number: currentNumber }), { retain: true });
+                }
+            } catch(e) { console.log("雲端同步暫時不可用"); }
+        }
+
+        // 歸零確認
+        function confirmReset() {
+            if (currentNumber === 0) return; 
+            if (confirm("確定要將目前的領藥號碼歸零嗎？")) {
+                currentNumber = 0;
+                updateUI(false);
+                localStorage.setItem('happyZebraBasicNumber', currentNumber);
+                
+                try {
+                    if(client && client.connected) {
+                        client.publish(topic, JSON.stringify({ sender: clientId, number: 0 }), { retain: true });
+                    }
+                } catch(e) {}
+            }
+        }
+
+        // 語音播報
+        function speakNumber() {
             if (isCalling) return;
             isCalling = true;
             display.classList.add('calling-glow');
@@ -390,18 +343,134 @@
             msg.rate = 0.95;
             msg.onend = () => { setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 800); };
             window.speechSynthesis.speak(msg);
-        };
+        }
 
-        // 鍵盤操作支援
-        document.addEventListener('keydown', (e) => {
-            if (e.repeat) return;
-            switch(e.key) {
-                case 'ArrowRight': case '+': window.changeNumber(1); break;
-                case 'ArrowLeft': case '-': window.changeNumber(-1); break;
-                case ' ': case 'Enter': e.preventDefault(); window.speakNumber(); break;
-                case 'Backspace': case 'Delete': window.confirmReset(); break;
+        // 音量切換
+        function toggleMute() {
+            isMuted = !isMuted;
+            localStorage.setItem('happyZebraMuted', isMuted);
+            updateMuteIcon();
+        }
+
+        function updateMuteIcon() {
+            const icon = document.getElementById('muteIcon');
+            const btn = document.getElementById('muteToggleBtn');
+            if (isMuted) {
+                icon.className = 'fa-solid fa-volume-xmark';
+                btn.classList.add('is-muted');
+            } else {
+                icon.className = 'fa-solid fa-volume-high';
+                btn.classList.remove('is-muted');
             }
+        }
+
+        // ========================================================
+        // 第二部分：綁定按鈕與特效 (使用 pointerdown 確保手機點擊零延遲)
+        // ========================================================
+        function bindEvents() {
+            const btnMinus = document.getElementById('btnMinus');
+            const btnPlus = document.getElementById('btnPlus');
+            
+            // 綁定加減號 (包含水波紋與震動特效)
+            const addRippleAndExecute = (element, callback) => {
+                element.addEventListener('pointerdown', function(e) {
+                    if (navigator.vibrate) navigator.vibrate(15);
+                    
+                    const circle = document.createElement("span");
+                    const diameter = Math.max(element.clientWidth, element.clientHeight);
+                    const radius = diameter / 2;
+                    const rect = element.getBoundingClientRect();
+                    
+                    circle.style.width = circle.style.height = `${diameter}px`;
+                    circle.style.left = `${e.clientX - rect.left - radius}px`;
+                    circle.style.top = `${e.clientY - rect.top - radius}px`;
+                    circle.classList.add("ripple-effect");
+
+                    const existingRipple = element.querySelector('.ripple-effect');
+                    if (existingRipple) existingRipple.remove();
+
+                    element.appendChild(circle);
+                    setTimeout(() => circle.remove(), 600);
+                    
+                    callback();
+                });
+            };
+
+            addRippleAndExecute(btnMinus, () => changeNumber(-1));
+            addRippleAndExecute(btnPlus, () => changeNumber(1));
+
+            // 其他點擊綁定
+            document.getElementById('zebraLogo').addEventListener('click', confirmReset);
+            document.getElementById('muteToggleBtn').addEventListener('click', toggleMute);
+            document.getElementById('numberDisplayContainer').addEventListener('click', speakNumber);
+
+            // 鍵盤綁定
+            document.addEventListener('keydown', (e) => {
+                if (e.repeat) return;
+                switch(e.key) {
+                    case 'ArrowRight': case '+': changeNumber(1); break;
+                    case 'ArrowLeft': case '-': changeNumber(-1); break;
+                    case ' ': case 'Enter': e.preventDefault(); speakNumber(); break;
+                    case 'Backspace': case 'Delete': confirmReset(); break;
+                }
+            });
+        }
+
+        // 初始化畫面與按鈕
+        window.addEventListener('DOMContentLoaded', () => {
+            display.innerText = currentNumber;
+            updateMuteIcon(); 
+            bindEvents();
         });
+
+        // ========================================================
+        // 第三部分：雲端同步 (獨立運行，若失敗絕不影響上方功能)
+        // ========================================================
+        try {
+            if (typeof mqtt !== 'undefined') {
+                client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+                    clientId: clientId,
+                    clean: true,
+                    connectTimeout: 5000,
+                    reconnectPeriod: 3000,
+                });
+
+                client.on('connect', () => {
+                    syncIdDisplay.innerText = "頻道已就緒";
+                    statusText.innerText = "● 雲端同步已連線";
+                    statusText.style.color = "#81c784"; 
+                    client.subscribe(topic);
+                });
+
+                client.on('reconnect', () => {
+                    statusText.innerText = "重新連線中...";
+                    statusText.style.color = "#e57373"; 
+                });
+
+                client.on('message', (t, message) => {
+                    if (t === topic) {
+                        try {
+                            const data = JSON.parse(message.toString());
+                            if (data.sender !== clientId) {
+                                const newNum = data.number;
+                                if (newNum > currentNumber && currentNumber !== 0) {
+                                    currentNumber = newNum;
+                                    updateUI(true); 
+                                } else {
+                                    currentNumber = newNum;
+                                    updateUI(false); 
+                                }
+                                localStorage.setItem('happyZebraBasicNumber', currentNumber);
+                            }
+                        } catch(e) {}
+                    }
+                });
+            } else {
+                statusText.innerText = "雲端套件阻擋 (單機模式)";
+            }
+        } catch (error) {
+            statusText.innerText = "網路環境限制 (單機模式)";
+        }
     </script>
 </body>
 </html>
