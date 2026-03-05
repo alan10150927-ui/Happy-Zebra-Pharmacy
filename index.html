@@ -1,507 +1,209 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>快樂斑馬藥局 - 叫號系統</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.3.5/mqtt.min.js"></script>
-    <style>
-        body {
-            background-color: #bda688;
-            font-family: "Microsoft JhengHei", sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            height: 100dvh;
-            margin: 0;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none; 
-            padding: 10px;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>同步領藥計數器</title>
 
-        .app-container {
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            gap: clamp(15px, 3vw, 40px);
-            align-items: center;
-            justify-items: center;
-            width: 100%;
-            max-width: 1000px;
-            transition: transform 0.3s ease;
-            z-index: 10;
-        }
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-        .grid-minus { grid-column: 1; grid-row: 1; }
-        .grid-card { grid-column: 2; grid-row: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .grid-plus { grid-column: 3; grid-row: 1; }
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      min-height: 100vh; /* 確保在電腦版也能填滿視窗 */
+      display: flex;
+      justify-content: center; /* 水平置中 */
+      align-items: center;     /* 垂直置中 */
+      background: #C3B091;
+      color: white;
+      font-family: "Microsoft JhengHei", Arial, sans-serif;
+      overflow: hidden;
+    }
 
-        .main-card {
-            width: 100%;
-            max-width: 600px;
-            background-color: #3e2723;
-            border-radius: clamp(20px, 4vw, 40px);
-            overflow: hidden;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
-            text-align: center;
-        }
+    /* 容器佈局 */
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 95%;
+      max-width: 600px; /* 電腦版限制最大寬度，避免過度拉伸 */
+      margin: auto;     /* 再次確保邊距自動分配以達到置中 */
+    }
 
-        .header-area {
-            background-color: #e5f1e1;
-            padding: clamp(15px, 3vh, 25px) 0;
-            color: #386641;
-            font-size: clamp(32px, 5vw, 56px);
-            font-weight: 900;
-            letter-spacing: 4px;
-            border-bottom: 2px solid rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: clamp(15px, 3vw, 25px);
-        }
+    /* 中間內容區塊 */
+    .center-content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      order: 1;
+    }
 
-        .header-logo {
-            height: clamp(65px, 10vw, 110px);
-            width: auto;
-            object-fit: contain;
-            background-color: transparent;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15));
-            cursor: pointer; 
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s;
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        .header-logo:hover {
-            transform: scale(1.1) rotate(-5deg);
-            filter: drop-shadow(0 8px 12px rgba(0,0,0,0.3));
-        }
-        .header-logo:active { transform: scale(0.95); }
+    .reset {
+      background: #DCEDC8;
+      color: #33691E;
+      width: 100%;
+      padding: 20px 0;
+      border-radius: 20px 20px 0 0;
+      font-size: clamp(32px, 8vw, 80px);
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+    }
 
-        .mute-btn {
-            position: fixed;
-            top: clamp(15px, 4vh, 30px);
-            right: clamp(15px, 4vw, 30px);
-            background-color: #3e2723;
-            color: #d7ccc8;
-            width: clamp(40px, 10vw, 60px);
-            height: clamp(40px, 10vw, 60px);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: clamp(18px, 4vw, 24px);
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            border: 2px solid rgba(255,255,255,0.1);
-            z-index: 999;
-            transition: all 0.2s;
-            -webkit-tap-highlight-color: transparent;
-        }
+    .screen {
+      font-size: clamp(100px, 25vw, 250px);
+      font-weight: bold;
+      width: 100%;
+      text-align: center;
+      background: #3E2723;
+      color: #FFFFFF;
+      padding: 10px 0;
+      border-radius: 0 0 20px 20px;
+      border: 6px solid #2D1B19;
+      border-top: none;
+      box-sizing: border-box;
+    }
 
-        .mute-btn.is-muted { color: #e57373; }
+    .announcement {
+      margin: 15px 0;
+      font-size: clamp(16px, 4vw, 28px);
+      font-weight: bold;
+      color: #000000;
+      background: rgba(255, 255, 255, 0.4);
+      padding: 10px;
+      border-radius: 10px;
+      width: 100%;
+      text-align: center;
+      box-sizing: border-box;
+    }
+    .orange-text { color: #FF6D00; }
+    .green-text { color: #2E7D32; }
 
-        .number-container {
-            height: clamp(150px, 35vh, 260px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            position: relative;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-        }
+    /* 按鈕容器 - 直向時在下方 */
+    .bottom-controls {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      gap: 20px;
+      order: 2;
+    }
 
-        .number-area {
-            color: white;
-            font-size: clamp(120px, 20vw, 200px);
-            font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-            font-weight: 600; 
-            letter-spacing: -1px;
-            line-height: 1;
-            text-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            font-variant-numeric: tabular-nums;
-        }
+    .btn {
+      background: #4E342E; 
+      padding: 25px;
+      border-radius: 15px;
+      flex: 1;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      transition: transform 0.1s;
+    }
+    .btn:active { transform: scale(0.95); }
+    .btn span { font-size: 50px; color: white; font-weight: bold; }
+    .plus { border-bottom: 8px solid #00c853; }
+    .minus { border-bottom: 8px solid #ff5252; }
 
-        .slide-up-in { animation: slideUpIn 0.4s ease-out forwards; }
-        @keyframes slideUpIn {
-            0% { transform: translateY(100%); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
+    /* --- 橫向模式調整 --- */
+    @media (orientation: landscape) {
+      .container {
+        flex-direction: row; 
+        max-width: 90vw; /* 橫放時給予更寬的空間 */
+        gap: 30px;
+        align-items: center;
+        transform: translateY(-8px) scale(0.9); 
+      }
 
-        .calling-glow { animation: callingGlow 1.5s ease-in-out infinite alternate; }
-        @keyframes callingGlow {
-            0% { transform: scale(1); text-shadow: 0 0 15px rgba(212, 175, 55, 0.2); }
-            100% { transform: scale(1.05); text-shadow: 0 0 40px rgba(212, 175, 55, 0.8), 0 0 80px rgba(212, 175, 55, 0.4); color: #fffde7; }
-        }
+      .bottom-controls {
+        display: contents; 
+      }
 
-        .footer-area {
-            background-color: #d7ccc8;
-            padding: clamp(10px, 2vh, 15px) clamp(5px, 2vw, 15px);
-            font-size: clamp(16px, 2.5vw, 24px);
-            font-weight: bold;
-            color: #333;
-            border-top: 2px solid rgba(0,0,0,0.1);
-        }
+      .center-content {
+        width: 420px; 
+        order: 2;
+      }
 
-        .btn-side {
-            width: clamp(80px, 12vw, 140px);
-            height: clamp(200px, 45vh, 400px);
-            background-color: #3e2723;
-            border-radius: clamp(20px, 4vw, 40px);
-            color: white;
-            font-size: clamp(50px, 8vw, 80px); 
-            font-weight: bold;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-            position: relative;
-            overflow: hidden;
-        }
+      .btn {
+        flex: 0 0 100px; 
+        height: 30vh;    
+        padding: 10px;
+        border-radius: 20px;
+      }
+      .btn span { font-size: 32px; }
 
-        .btn-side:active { transform: translateY(5px) scale(0.95); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
-        .btn-minus { border-bottom: clamp(6px, 1.5vh, 12px) solid #e57373; }
-        .btn-plus { border-bottom: clamp(6px, 1.5vh, 12px) solid #81c784; }
+      .minus { order: 1; }
+      .plus { order: 3; }
 
-        .ripple-effect {
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.4);
-            transform: scale(0);
-            animation: rippleAnim 0.6s linear;
-            pointer-events: none;
-        }
-
-        @keyframes rippleAnim {
-            to { transform: scale(3); opacity: 0; }
-        }
-
-        .highlight-orange { color: #f4511e; }
-        .highlight-green { color: #2e7d32; }
-
-        @media (orientation: portrait) {
-            .app-container { grid-template-columns: 1fr 1fr; gap: 15px; max-width: 600px; }
-            .grid-card { grid-column: 1 / 3; grid-row: 1; }
-            .grid-minus { grid-column: 1; grid-row: 2; }
-            .grid-plus { grid-column: 2; grid-row: 2; }
-            .btn-side { width: 100%; height: clamp(80px, 12vh, 120px); border-radius: 20px; font-size: clamp(40px, 10vw, 60px); border-bottom-width: 8px; }
-            .header-area { font-size: clamp(26px, 7vw, 40px); padding: 15px 10px; gap: 12px; }
-            .header-logo { height: clamp(80px, 18vw, 120px); }
-            .mute-btn { top: 15px; right: 15px; width: 50px; height: 50px; font-size: 20px; }
-        }
-
-        @media (orientation: landscape) and (max-height: 500px) {
-            .app-container { transform: translateY(-8vh); }
-            .header-area { font-size: clamp(24px, 7vh, 36px); padding: 8px 0; gap: 15px; }
-            .number-container { height: clamp(90px, 40vh, 140px); }
-            .number-area { font-size: clamp(80px, 40vh, 120px); }
-            .footer-area { font-size: clamp(12px, 3.5vh, 16px); padding: 6px; }
-            .header-logo { height: clamp(50px, 15vh, 80px); }
-            .btn-side { height: clamp(100px, 50vh, 180px); border-bottom-width: 6px; }
-            .mute-btn { top: 15px; right: 25px; width: 45px; height: 45px; font-size: 18px; }
-        }
-        
-        #connectionStatus {
-            position: fixed;
-            bottom: 12px;
-            right: 15px;
-            font-size: 12px;
-            color: rgba(255,255,255,0.8);
-            z-index: 100;
-            background: rgba(0,0,0,0.5);
-            padding: 6px 12px;
-            border-radius: 8px;
-            text-align: right;
-            backdrop-filter: blur(4px);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-    </style>
+      .reset { font-size: 40px; }
+      .screen { font-size: 120px; }
+      .announcement { 
+        font-size: 18px; 
+        margin-top: 5px; 
+        margin-bottom: 10px;
+      }
+    }
+  </style>
 </head>
 <body>
 
-    <!-- 改回最穩定的 onclick 綁定 -->
-    <button id="muteToggleBtn" class="mute-btn" title="開啟/關閉語音" onclick="toggleMute()">
-        <i id="muteIcon" class="fa-solid fa-volume-high"></i>
+<div class="container">
+  <div class="bottom-controls">
+    <button class="btn minus" onclick="change(-1)">
+      <span>- 1</span>
     </button>
-
-    <div class="app-container">
-        <!-- 直接在 HTML 綁定點擊事件，確保瀏覽器認定這是「使用者操作」 -->
-        <div id="btnMinus" class="grid-minus btn-side btn-minus" onclick="changeNumber(-1)"> - </div>
-        
-        <div class="grid-card">
-            <div class="main-card">
-                <div class="header-area">
-                    <img src="logo.png" alt="Logo" class="header-logo" id="zebraLogo" title="點擊斑馬歸零" onclick="confirmReset()" onerror="this.src='logo.jpg'; this.onerror=null;">
-                    <span>目前領藥號</span>
-                </div>
-                <div class="number-container" id="numberDisplayContainer" onclick="speakNumber()">
-                    <div id="numberDisplay" class="number-area">0</div>
-                </div>
-                <div class="footer-area">
-                    領藥號<span class="highlight-orange">到號</span>或<span class="highlight-orange">過號</span>後，請<span class="highlight-green">依序排隊</span>領藥
-                </div>
-            </div>
-            <div class="mt-6 text-[#7a6452] text-sm font-bold tracking-widest hidden md:block drop-shadow-sm relative group cursor-help w-full max-w-[400px]">
-                <div class="opacity-70 group-hover:opacity-0 transition-opacity duration-300 absolute w-full text-center pointer-events-none">
-                    <i class="fa-regular fa-keyboard mr-1"></i> 快捷鍵說明
-                </div>
-                <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-center">
-                    [→] 加一號 / [←] 減一號 / [空白鍵] 叫號 / 點擊斑馬歸零
-                </div>
-            </div>
-        </div>
-        
-        <!-- 直接在 HTML 綁定點擊事件 -->
-        <div id="btnPlus" class="grid-plus btn-side btn-plus" onclick="changeNumber(1)"> + </div>
-    </div>
     
-    <div id="connectionStatus">
-        <span id="syncIdDisplay">單機模式運作中</span><br>
-        <span id="statusText">等待連線...</span>
+    <button class="btn plus" onclick="change(1)">
+      <span>+ 1</span>
+    </button>
+  </div>
+
+  <div class="center-content">
+    <button class="reset" onclick="reset()">目前領藥號</button>
+    <div class="screen" id="value">0</div>
+    <div class="announcement">
+      領藥號<span class="orange-text">到號</span>或<span class="orange-text">過號</span>後，請<span class="green-text">依序排隊</span>領藥
     </div>
+  </div>
+</div>
 
-    <script>
-        // ========================================================
-        // 第一部分：手機端語音強制解鎖機制 
-        // ========================================================
-        let speechUnlocked = false;
-        function unlockSpeech() {
-            if (!speechUnlocked && 'speechSynthesis' in window) {
-                const silentUtterance = new SpeechSynthesisUtterance(' ');
-                silentUtterance.volume = 0;
-                silentUtterance.rate = 2;
-                window.speechSynthesis.speak(silentUtterance);
-                window.speechSynthesis.resume(); 
-                speechUnlocked = true;
-            }
-            document.body.removeEventListener('touchstart', unlockSpeech);
-            document.body.removeEventListener('click', unlockSpeech);
-            document.body.removeEventListener('pointerdown', unlockSpeech);
-        }
-        document.body.addEventListener('touchstart', unlockSpeech, { once: true });
-        document.body.addEventListener('click', unlockSpeech, { once: true });
-        document.body.addEventListener('pointerdown', unlockSpeech, { once: true });
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWkmKm3TWaHXQ2CPkSJ0MBdsORiECSZ94",
+    authDomain: "siao-b8cf2.firebaseapp.com",
+    databaseURL: "https://siao-b8cf2-default-rtdb.firebaseio.com",
+    projectId: "siao-b8cf2",
+    storageBucket: "siao-b8cf2.firebasestorage.app",
+    messagingSenderId: "51378819186",
+    appId: "1:51378819186:web:35bc056d5b4c17cc12f2eb"
+  };
 
-        window.sysUtterances = [];
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const counterRef = db.ref("counter/value");
 
-        // ========================================================
-        // 第二部分：核心 UI 邏輯
-        // ========================================================
-        let currentNumber = parseInt(localStorage.getItem('happyZebraBasicNumber')) || 0;
-        let isCalling = false;
-        let isMuted = localStorage.getItem('happyZebraMuted') === 'true';
-        let client = null; 
-        const topic = "happy-zebra-queue-sync-alan001006003"; 
-        const clientId = 'device_' + Math.random().toString(16).substr(2, 8);
+  counterRef.on("value", (snapshot) => {
+    const val = snapshot.val() ?? 0;
+    document.getElementById("value").innerText = val;
+  });
 
-        const display = document.getElementById('numberDisplay');
-        const statusText = document.getElementById('statusText');
-        const syncIdDisplay = document.getElementById('syncIdDisplay');
-        
-        function updateUI(shouldSpeak) {
-            display.classList.remove('slide-up-in');
-            void display.offsetWidth; 
-            display.innerText = currentNumber;
-            display.classList.add('slide-up-in');
-            if (shouldSpeak) speakNumber();
-        }
+  function change(delta) {
+    counterRef.transaction((current) => (current || 0) + delta);
+  }
 
-        // 把方法暴露給 HTML onclick 使用
-        window.changeNumber = function(delta) {
-            currentNumber = Math.max(0, currentNumber + delta);
-            updateUI(delta > 0); // delta 大於 0 (按加號) 時觸發播報
-            localStorage.setItem('happyZebraBasicNumber', currentNumber);
-            
-            try {
-                if(client && client.connected) {
-                    client.publish(topic, JSON.stringify({ sender: clientId, number: currentNumber }), { retain: true });
-                }
-            } catch(e) { console.log("雲端同步暫時不可用"); }
-        }
+  function reset() {
+    if(confirm("確定要將領藥號歸零嗎？")) {
+      counterRef.set(0);
+    }
+  }
+</script>
 
-        window.confirmReset = function() {
-            if (currentNumber === 0) return; 
-            if (confirm("確定要將目前的領藥號碼歸零嗎？")) {
-                currentNumber = 0;
-                updateUI(false);
-                localStorage.setItem('happyZebraBasicNumber', currentNumber);
-                
-                try {
-                    if(client && client.connected) {
-                        client.publish(topic, JSON.stringify({ sender: clientId, number: 0 }), { retain: true });
-                    }
-                } catch(e) {}
-            }
-        }
-
-        window.speakNumber = function() {
-            if (isCalling) return;
-            
-            display.classList.add('calling-glow');
-            
-            if (isMuted || !('speechSynthesis' in window)) {
-                isCalling = true;
-                setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 1500);
-                return;
-            }
-            
-            isCalling = true;
-            
-            if (window.speechSynthesis.speaking) {
-                window.speechSynthesis.cancel();
-            }
-
-            // 【重要修復】移除了原先包裹在這裡的 setTimeout()
-            // 因為延遲會切斷手機對「使用者操作」的認定，導致聲音被阻擋。
-            const msg = new SpeechSynthesisUtterance(`請 ${currentNumber} 號到櫃檯領藥`);
-            msg.lang = 'zh-TW';
-            msg.rate = 0.95;
-            msg.volume = 1;
-            
-            window.sysUtterances.push(msg); // 防止安卓瀏覽器吃掉語音
-            
-            let isEnded = false;
-            const cleanup = () => {
-                if(isEnded) return;
-                isEnded = true;
-                setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 800);
-                window.sysUtterances = window.sysUtterances.filter(u => u !== msg); 
-            };
-
-            msg.onend = cleanup;
-            msg.onerror = cleanup;
-            
-            // 強制防呆機制，避免引擎當機按鈕卡死
-            setTimeout(cleanup, 4000); 
-
-            window.speechSynthesis.resume(); 
-            window.speechSynthesis.speak(msg);
-        }
-
-        window.toggleMute = function() {
-            isMuted = !isMuted;
-            localStorage.setItem('happyZebraMuted', isMuted);
-            updateMuteIcon();
-            if (!isMuted) unlockSpeech();
-        }
-
-        function updateMuteIcon() {
-            const icon = document.getElementById('muteIcon');
-            const btn = document.getElementById('muteToggleBtn');
-            if (isMuted) {
-                icon.className = 'fa-solid fa-volume-xmark';
-                btn.classList.add('is-muted');
-            } else {
-                icon.className = 'fa-solid fa-volume-high';
-                btn.classList.remove('is-muted');
-            }
-        }
-
-        // ========================================================
-        // 第三部分：只保留純視覺水波紋特效 (不干涉邏輯)
-        // ========================================================
-        function bindRippleEffects() {
-            const btnMinus = document.getElementById('btnMinus');
-            const btnPlus = document.getElementById('btnPlus');
-            
-            const addRipple = (element) => {
-                element.addEventListener('pointerdown', function(e) {
-                    if (navigator.vibrate) navigator.vibrate(15);
-                    const circle = document.createElement("span");
-                    const diameter = Math.max(element.clientWidth, element.clientHeight);
-                    const radius = diameter / 2;
-                    const rect = element.getBoundingClientRect();
-                    
-                    circle.style.width = circle.style.height = `${diameter}px`;
-                    circle.style.left = `${e.clientX - rect.left - radius}px`;
-                    circle.style.top = `${e.clientY - rect.top - radius}px`;
-                    circle.classList.add("ripple-effect");
-
-                    const existingRipple = element.querySelector('.ripple-effect');
-                    if (existingRipple) existingRipple.remove();
-
-                    element.appendChild(circle);
-                    setTimeout(() => circle.remove(), 600);
-                });
-            };
-
-            addRipple(btnMinus);
-            addRipple(btnPlus);
-
-            document.addEventListener('keydown', (e) => {
-                if (e.repeat) return;
-                switch(e.key) {
-                    case 'ArrowRight': case '+': changeNumber(1); break;
-                    case 'ArrowLeft': case '-': changeNumber(-1); break;
-                    case ' ': case 'Enter': e.preventDefault(); speakNumber(); break;
-                    case 'Backspace': case 'Delete': confirmReset(); break;
-                }
-            });
-        }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            display.innerText = currentNumber;
-            updateMuteIcon(); 
-            bindRippleEffects();
-        });
-
-        // ========================================================
-        // 第四部分：雲端同步
-        // ========================================================
-        try {
-            if (typeof mqtt !== 'undefined') {
-                client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
-                    clientId: clientId,
-                    clean: true,
-                    connectTimeout: 5000,
-                    reconnectPeriod: 3000,
-                });
-
-                client.on('connect', () => {
-                    syncIdDisplay.innerText = "頻道已就緒";
-                    statusText.innerText = "● 雲端同步已連線";
-                    statusText.style.color = "#81c784"; 
-                    client.subscribe(topic);
-                });
-
-                client.on('reconnect', () => {
-                    statusText.innerText = "重新連線中...";
-                    statusText.style.color = "#e57373"; 
-                });
-
-                client.on('message', (t, message) => {
-                    if (t === topic) {
-                        try {
-                            const data = JSON.parse(message.toString());
-                            if (data.sender !== clientId) {
-                                const newNum = data.number;
-                                if (newNum > currentNumber && currentNumber !== 0) {
-                                    currentNumber = newNum;
-                                    updateUI(true); 
-                                } else {
-                                    currentNumber = newNum;
-                                    updateUI(false); 
-                                }
-                                localStorage.setItem('happyZebraBasicNumber', currentNumber);
-                            }
-                        } catch(e) {}
-                    }
-                });
-            } else {
-                statusText.innerText = "雲端套件阻擋 (單機模式)";
-            }
-        } catch (error) {
-            statusText.innerText = "網路環境限制 (單機模式)";
-        }
-    </script>
 </body>
 </html>
