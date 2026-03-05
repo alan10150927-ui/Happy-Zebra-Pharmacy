@@ -276,6 +276,16 @@
                 font-size: 18px;
             }
         }
+        
+        /* 連線狀態提示 */
+        #connectionStatus {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.3);
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
@@ -323,34 +333,109 @@
             +
         </div>
     </div>
+    
+    <div id="connectionStatus">正在連線至雲端...</div>
 
-    <script>
-        let currentNumber = parseInt(localStorage.getItem('happyZebraBasicNumber')) || 0;
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // Firebase 設定
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'happy-zebra-pharmacy';
+
+        // 狀態變數
+        let currentNumber = 0;
         let isCalling = false;
-        // 讀取靜音設定，預設為 false (有聲音)
         let isMuted = localStorage.getItem('happyZebraMuted') === 'true';
+        let user = null;
 
-        window.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('numberDisplay').innerText = currentNumber;
-            updateMuteIcon(); // 初始化聲音圖示
+        // 初始化 UI
+        const display = document.getElementById('numberDisplay');
+        const statusEl = document.getElementById('connectionStatus');
+
+        // 1. 先處理身分驗證 (Rule 3)
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                statusEl.innerText = "驗證失敗，請重新整理";
+            }
+        };
+
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+            if (user) {
+                statusEl.innerText = "雲端同步中";
+                startSync(); // 驗證成功後開始監聽資料
+            }
         });
 
-        function changeNumber(delta) {
-            currentNumber = Math.max(0, currentNumber + delta);
-            localStorage.setItem('happyZebraBasicNumber', currentNumber);
-            updateUI();
+        initAuth();
+
+        // 2. 監聽雲端資料 (Rule 1 & 2)
+        function startSync() {
+            // 資料路徑: /artifacts/{appId}/public/data/queue
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue_info');
             
-            if (delta > 0) {
-                speakNumber();
-            }
+            onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const newNumber = data.currentNumber || 0;
+                    
+                    // 如果雲端號碼變大，觸發叫號
+                    if (newNumber > currentNumber && currentNumber !== 0) {
+                        currentNumber = newNumber;
+                        updateUI(true); // 觸發語音叫號
+                    } else {
+                        currentNumber = newNumber;
+                        updateUI(false); // 僅更新畫面
+                    }
+                } else {
+                    // 如果資料夾是空的，初始化一個
+                    setDoc(docRef, { currentNumber: 0 });
+                }
+            }, (error) => {
+                statusEl.innerText = "同步出錯，請檢查網路";
+            });
         }
 
-        // --- 聲音開關控制邏輯 ---
-        function toggleMute() {
+        // 3. 修改資料的方法
+        window.changeNumber = async (delta) => {
+            if (!user) return;
+            const newNum = Math.max(0, currentNumber + delta);
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue_info');
+            try {
+                await updateDoc(docRef, { currentNumber: newNum });
+            } catch (e) {
+                // 如果文件不存在則建立
+                await setDoc(docRef, { currentNumber: newNum });
+            }
+        };
+
+        window.confirmReset = async () => {
+            if (currentNumber === 0) return; 
+            if (confirm("確定要將目前的領藥號碼歸零嗎？")) {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'queue_info');
+                await updateDoc(docRef, { currentNumber: 0 });
+            }
+        };
+
+        // UI 與聲音控制
+        window.toggleMute = () => {
             isMuted = !isMuted;
             localStorage.setItem('happyZebraMuted', isMuted);
             updateMuteIcon();
-        }
+        };
 
         function updateMuteIcon() {
             const icon = document.getElementById('muteIcon');
@@ -363,44 +448,28 @@
                 btn.classList.remove('is-muted');
             }
         }
-        // ------------------------
 
-        function confirmReset() {
-            if (currentNumber === 0) return; 
+        function updateUI(shouldSpeak) {
+            display.classList.remove('slide-up-in');
+            void display.offsetWidth; 
+            display.innerText = currentNumber;
+            display.classList.add('slide-up-in');
             
-            if (confirm("確定要將目前的領藥號碼歸零嗎？")) {
-                resetNumber();
+            if (shouldSpeak) {
+                speakNumber();
             }
         }
 
-        function resetNumber() {
-            currentNumber = 0;
-            localStorage.setItem('happyZebraBasicNumber', currentNumber);
-            updateUI();
-        }
-
-        function updateUI() {
-            const display = document.getElementById('numberDisplay');
-            display.classList.remove('slide-up-in');
-            void display.offsetWidth; 
-            
-            display.innerText = currentNumber;
-            display.classList.add('slide-up-in');
-        }
-
-        function speakNumber() {
+        window.speakNumber = () => {
             if (isCalling) return;
             isCalling = true;
-
-            const display = document.getElementById('numberDisplay');
             display.classList.add('calling-glow');
 
-            // 如果開啟了靜音，只顯示發光動畫，不播放聲音
             if (isMuted || !('speechSynthesis' in window)) {
                 setTimeout(() => {
                     display.classList.remove('calling-glow');
                     isCalling = false;
-                }, 1500); // 動畫維持 1.5 秒
+                }, 1500);
                 return;
             }
 
@@ -408,38 +477,38 @@
             const msg = new SpeechSynthesisUtterance(`請 ${currentNumber} 號到櫃檯領藥`);
             msg.lang = 'zh-TW';
             msg.rate = 0.95;
-            
             msg.onend = () => {
                 setTimeout(() => {
                     display.classList.remove('calling-glow');
                     isCalling = false;
                 }, 800);
             };
-            
             window.speechSynthesis.speak(msg);
-        }
+        };
 
-        // 鍵盤操作支援
+        // 初始化靜音圖示
+        updateMuteIcon();
+
+        // 鍵盤支援
         document.addEventListener('keydown', (e) => {
             if (e.repeat) return;
-
             switch(e.key) {
                 case 'ArrowRight':
                 case '+':
-                    changeNumber(1);
+                    window.changeNumber(1);
                     break;
                 case 'ArrowLeft':
                 case '-':
-                    changeNumber(-1);
+                    window.changeNumber(-1);
                     break;
                 case ' ':
                 case 'Enter':
                     e.preventDefault(); 
-                    speakNumber();
+                    window.speakNumber();
                     break;
                 case 'Backspace':
                 case 'Delete':
-                    confirmReset();
+                    window.confirmReset();
                     break;
             }
         });
