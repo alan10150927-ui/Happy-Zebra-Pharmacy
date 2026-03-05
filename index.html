@@ -228,20 +228,22 @@
 </head>
 <body>
 
-    <button id="muteToggleBtn" class="mute-btn" title="開啟/關閉語音">
+    <!-- 改回最穩定的 onclick 綁定 -->
+    <button id="muteToggleBtn" class="mute-btn" title="開啟/關閉語音" onclick="toggleMute()">
         <i id="muteIcon" class="fa-solid fa-volume-high"></i>
     </button>
 
     <div class="app-container">
-        <div id="btnMinus" class="grid-minus btn-side btn-minus"> - </div>
+        <!-- 直接在 HTML 綁定點擊事件，確保瀏覽器認定這是「使用者操作」 -->
+        <div id="btnMinus" class="grid-minus btn-side btn-minus" onclick="changeNumber(-1)"> - </div>
         
         <div class="grid-card">
             <div class="main-card">
                 <div class="header-area">
-                    <img src="logo.png" alt="Logo" class="header-logo" id="zebraLogo" title="點擊斑馬歸零" onerror="this.src='logo.jpg'; this.onerror=null;">
+                    <img src="logo.png" alt="Logo" class="header-logo" id="zebraLogo" title="點擊斑馬歸零" onclick="confirmReset()" onerror="this.src='logo.jpg'; this.onerror=null;">
                     <span>目前領藥號</span>
                 </div>
-                <div class="number-container" id="numberDisplayContainer">
+                <div class="number-container" id="numberDisplayContainer" onclick="speakNumber()">
                     <div id="numberDisplay" class="number-area">0</div>
                 </div>
                 <div class="footer-area">
@@ -258,7 +260,8 @@
             </div>
         </div>
         
-        <div id="btnPlus" class="grid-plus btn-side btn-plus"> + </div>
+        <!-- 直接在 HTML 綁定點擊事件 -->
+        <div id="btnPlus" class="grid-plus btn-side btn-plus" onclick="changeNumber(1)"> + </div>
     </div>
     
     <div id="connectionStatus">
@@ -268,29 +271,26 @@
 
     <script>
         // ========================================================
-        // 第一部分：手機端語音強制解鎖機制 (強化版)
+        // 第一部分：手機端語音強制解鎖機制 
         // ========================================================
         let speechUnlocked = false;
         function unlockSpeech() {
             if (!speechUnlocked && 'speechSynthesis' in window) {
-                // 發出一個極短的空白無聲音訊，徹底喚醒 iOS 語音引擎
                 const silentUtterance = new SpeechSynthesisUtterance(' ');
                 silentUtterance.volume = 0;
                 silentUtterance.rate = 2;
                 window.speechSynthesis.speak(silentUtterance);
-                window.speechSynthesis.resume(); // Safari 必備
+                window.speechSynthesis.resume(); 
                 speechUnlocked = true;
             }
             document.body.removeEventListener('touchstart', unlockSpeech);
             document.body.removeEventListener('click', unlockSpeech);
             document.body.removeEventListener('pointerdown', unlockSpeech);
         }
-        // 綁定到所有的觸控與點擊事件，確保第一次互動一定能解鎖
         document.body.addEventListener('touchstart', unlockSpeech, { once: true });
         document.body.addEventListener('click', unlockSpeech, { once: true });
         document.body.addEventListener('pointerdown', unlockSpeech, { once: true });
 
-        // 防止 Chrome 語音被垃圾回收機制中斷
         window.sysUtterances = [];
 
         // ========================================================
@@ -315,9 +315,10 @@
             if (shouldSpeak) speakNumber();
         }
 
-        function changeNumber(delta) {
+        // 把方法暴露給 HTML onclick 使用
+        window.changeNumber = function(delta) {
             currentNumber = Math.max(0, currentNumber + delta);
-            updateUI(delta > 0);
+            updateUI(delta > 0); // delta 大於 0 (按加號) 時觸發播報
             localStorage.setItem('happyZebraBasicNumber', currentNumber);
             
             try {
@@ -327,7 +328,7 @@
             } catch(e) { console.log("雲端同步暫時不可用"); }
         }
 
-        function confirmReset() {
+        window.confirmReset = function() {
             if (currentNumber === 0) return; 
             if (confirm("確定要將目前的領藥號碼歸零嗎？")) {
                 currentNumber = 0;
@@ -342,8 +343,7 @@
             }
         }
 
-        // 終極防當機語音播報
-        function speakNumber() {
+        window.speakNumber = function() {
             if (isCalling) return;
             
             display.classList.add('calling-glow');
@@ -356,47 +356,41 @@
             
             isCalling = true;
             
-            // 解決 iOS Safari cancel() 會導致整個語音系統當機的 Bug
             if (window.speechSynthesis.speaking) {
                 window.speechSynthesis.cancel();
             }
 
-            const playVoice = () => {
-                const msg = new SpeechSynthesisUtterance(`請 ${currentNumber} 號到櫃檯領藥`);
-                msg.lang = 'zh-TW';
-                msg.rate = 0.95;
-                msg.volume = 1;
-                
-                window.sysUtterances.push(msg); // 防止 GC
-                
-                let isEnded = false;
-                const cleanup = () => {
-                    if(isEnded) return;
-                    isEnded = true;
-                    setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 800);
-                    window.sysUtterances = window.sysUtterances.filter(u => u !== msg); // 清理記憶體
-                };
-
-                msg.onend = cleanup;
-                msg.onerror = cleanup;
-                
-                // 強制防呆：如果手機語音引擎卡死 (onend沒觸發)，4秒後強制解鎖按鈕
-                setTimeout(cleanup, 4000); 
-
-                window.speechSynthesis.resume(); // 喚醒引擎
-                window.speechSynthesis.speak(msg);
+            // 【重要修復】移除了原先包裹在這裡的 setTimeout()
+            // 因為延遲會切斷手機對「使用者操作」的認定，導致聲音被阻擋。
+            const msg = new SpeechSynthesisUtterance(`請 ${currentNumber} 號到櫃檯領藥`);
+            msg.lang = 'zh-TW';
+            msg.rate = 0.95;
+            msg.volume = 1;
+            
+            window.sysUtterances.push(msg); // 防止安卓瀏覽器吃掉語音
+            
+            let isEnded = false;
+            const cleanup = () => {
+                if(isEnded) return;
+                isEnded = true;
+                setTimeout(() => { display.classList.remove('calling-glow'); isCalling = false; }, 800);
+                window.sysUtterances = window.sysUtterances.filter(u => u !== msg); 
             };
 
-            // 給予極短的延遲，避開 iOS cancel 衝突
-            setTimeout(playVoice, 50);
+            msg.onend = cleanup;
+            msg.onerror = cleanup;
+            
+            // 強制防呆機制，避免引擎當機按鈕卡死
+            setTimeout(cleanup, 4000); 
+
+            window.speechSynthesis.resume(); 
+            window.speechSynthesis.speak(msg);
         }
 
-        function toggleMute() {
+        window.toggleMute = function() {
             isMuted = !isMuted;
             localStorage.setItem('happyZebraMuted', isMuted);
             updateMuteIcon();
-            
-            // 如果解除靜音，順便幫忙解鎖語音
             if (!isMuted) unlockSpeech();
         }
 
@@ -413,14 +407,13 @@
         }
 
         // ========================================================
-        // 第三部分：綁定按鈕與特效
+        // 第三部分：只保留純視覺水波紋特效 (不干涉邏輯)
         // ========================================================
-        function bindEvents() {
+        function bindRippleEffects() {
             const btnMinus = document.getElementById('btnMinus');
             const btnPlus = document.getElementById('btnPlus');
             
-            const addRippleAndExecute = (element, callback) => {
-                // 視覺與震動回饋
+            const addRipple = (element) => {
                 element.addEventListener('pointerdown', function(e) {
                     if (navigator.vibrate) navigator.vibrate(15);
                     const circle = document.createElement("span");
@@ -439,19 +432,10 @@
                     element.appendChild(circle);
                     setTimeout(() => circle.remove(), 600);
                 });
-
-                // 實際執行邏輯 
-                element.addEventListener('click', function(e) {
-                    callback();
-                });
             };
 
-            addRippleAndExecute(btnMinus, () => changeNumber(-1));
-            addRippleAndExecute(btnPlus, () => changeNumber(1));
-
-            document.getElementById('zebraLogo').addEventListener('click', confirmReset);
-            document.getElementById('muteToggleBtn').addEventListener('click', toggleMute);
-            document.getElementById('numberDisplayContainer').addEventListener('click', speakNumber);
+            addRipple(btnMinus);
+            addRipple(btnPlus);
 
             document.addEventListener('keydown', (e) => {
                 if (e.repeat) return;
@@ -467,7 +451,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             display.innerText = currentNumber;
             updateMuteIcon(); 
-            bindEvents();
+            bindRippleEffects();
         });
 
         // ========================================================
